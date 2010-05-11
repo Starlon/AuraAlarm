@@ -1,17 +1,17 @@
 ## Interface: 30300
 ## Version: 1.3
-## Title: DebuffAlarm
+## Title: AuraAlarm
 ## Author: Starlon
-## Notes: Debuff alarm.
+## Notes: Aura alarm.
 ## OptionalDeps: Ace3, Babble-Spell-2.2, BetterBlizzOptions
-## SavedVariables: DebuffAlarmDB
+## SavedVariables: AuraAlarmDB
 ## X-License: GPL v3
 ## X-Category: Buffs
 ## X-Embeds: Ace3, Babble-2.2, SharedMediaLib
 ## X-Curse-Packaged-Version: 1.3.2b
-## X-Curse-Project-Name: DebuffAlarm
-## X-Curse-Project-ID: debuff-alarm
-## X-Curse-Repository-ID: wow/debuff-alarm/mainline
+## X-Curse-Project-Name: AuraAlarm
+## X-Curse-Project-ID: aura-alarm
+# X-Curse-Repository-ID: wow/aura-alarm/mainline
 
 embeds.xml
 
@@ -21,4 +21,4 @@ Localization_koKR.lua
 Localization_zhCN.lua
 Localization_zhTW.lua
 
-DebuffAlarm.lua
+AuraAlarm.lua

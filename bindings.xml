@@ -1,5 +1,5 @@
 <Bindings>
-	<Binding name="ADDDEBUFF" description="Add debuff under the mouse" header="DEBUFFALARM">
-		DebuffAlarm:AddDebuffUnderMouse()
+	<Binding name="ADDAURA" description="Add aura under the mouse" header="AuRAALARM">
+		AuraAlarm:AddAuraUnderMouse()
 	</Binding>
 </Bindings>
