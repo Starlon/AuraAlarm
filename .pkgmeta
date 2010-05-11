@@ -46,7 +46,7 @@ externals:
         tag: latest
         
     Lib/LibSharedMedia-3.0: 
-        url: svn://svn.wowace.com/wow/libsharedmedia-3-0/mainline/trunk
+        url: svn://svn.wowace.com/wow/libsharedmedia-3-0/mainline/trunk/LibSharedMedia-3.0
         tag: latest
         
     Lib/AceSerializer-3.0: 
