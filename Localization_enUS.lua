@@ -39,3 +39,7 @@ L["Stacks: "] = true
 L["Harmful"] = true
 L["Helpful"] = true
 L["Type"] = true
+L["Normal"] = true
+L["Determined"] = true
+L["Support Mode"] = true
+L["Select between determined and normal mode."] = true

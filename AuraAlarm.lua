@@ -37,7 +37,9 @@ local soundFiles = LSM:List("sound")
 
 local alarmModes = {L["Flash Background"], L["Persist"], L["None"]}
 
-local alarmTypes = {L["Harmful"], L["Helpful"]}
+local auraTypes = {L["Harmful"], L["Helpful"]}
+
+local supportModes = {L["Normal"], L["Determined"]}
 
 local opts = { 
 	type = 'group',
@@ -49,40 +51,54 @@ local opts = {
 			args = {},
 			order = 1
 		},
-        	x = {
-                	name = "X",
+		x = {
+			name = "X",
 			desc = L["Frame x position"],
-	                type = "range",
-        	        get = function()
-                	        return AuraAlarm.db.profile.x
-	                end,
-        	        set = function(info, v)
-                	        AuraAlarm.db.profile.x = v
+			type = "range",
+			get = function()
+				return AuraAlarm.db.profile.x
+			end,
+			set = function(info, v)
+				AuraAlarm.db.profile.x = v
 				AuraAlarm.DAIconFrame:ClearAllPoints()
-                        	AuraAlarm.DAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
-	                end,
+				AuraAlarm.DAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
+			end,
 			min = -math.floor(GetScreenWidth()/2 + 0.5),
 			max = math.floor(GetScreenWidth()/2 + 0.5),
 			step = 1,
-	                order = 2
-        	},
+			order = 2
+		},
 		y = {
-                	name = "Y",
+			name = "Y",
 			desc = L["Frame y position"],
-	                type = "range",
-        	        get = function()
-                	        return AuraAlarm.db.profile.y
-	                end,
-        	        set = function(info, v)
-                	        AuraAlarm.db.profile.y = v
+			type = "range",
+			get = function()
+				return AuraAlarm.db.profile.y
+			end,
+			set = function(info, v)
+				AuraAlarm.db.profile.y = v
 				AuraAlarm.DAIconFrame:ClearAllPoints()
-                        	AuraAlarm.DAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
-	                end,
-        	        min = -math.floor(GetScreenHeight()/2 + 0.5),
-                	max = math.floor(GetScreenHeight()/2 + 0.5),
+				AuraAlarm.DAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
+			end,
+			min = -math.floor(GetScreenHeight()/2 + 0.5),
+			max = math.floor(GetScreenHeight()/2 + 0.5),
 			step = 1,
-	                order = 3
-        	}
+			order = 3
+		},
+		mode = {
+			name = L["Support Mode"],
+			desc = L["Select between determined and normal mode."],
+			type = "select",
+			values = supportModes,
+			get = function()
+				return AuraAlarm.db.profile.mode or 1
+			end,
+			set  = function(info, v)
+				AuraAlarm.db.profile.mode = v
+				AuraAlarm:ChangeMode(v)
+			end,
+			order = 4
+		}
 	}
 }
 
@@ -185,14 +201,14 @@ function AuraAlarm:BuildAurasOpts()
 					end,
 					order=6 
 				},
-				stacks = {
+				count = {
 					name = L["Stacks"],
 					type = "input",
 					get = function()
-						return tostring(self.db.profile.auras[k].stacks or 1)
+						return tostring(self.db.profile.auras[k].count or 1)
 					end,
 					set = function(info, v)
-						self.db.profile.auras[k].stacks = tonumber(v)
+						self.db.profile.auras[k].count = tonumber(v)
 					end,
 					pattern = "%d",
 					order=7
@@ -201,7 +217,7 @@ function AuraAlarm:BuildAurasOpts()
 					name = L["Type"],
 					desc = "AuraType",
 					type = "select",
-					values = alarmTypes,
+					values = auraTypes,
 					get = function()
 						return self.db.profile.auras[k].type or 1
 					end,
@@ -247,9 +263,9 @@ function AuraAlarm:BuildAurasOpts()
 		order=1
 	}
     opts.args.auras.args.add.args.captured_header = {
-        type = "header",
-        name = L["Captured Auras - Click to add"],
-        order=2
+	type = "header",
+	name = L["Captured Auras - Click to add"],
+	order=2
     }
 	for k,v in pairs(self.captured_auras) do
 		opts.args.auras.args.add.args[k] = {
@@ -275,17 +291,17 @@ function AuraAlarm:OnInitialize()
 	self:RegisterChatCommand("/da", "/auraalarm", opts)
     
     AceConfigDialog:AddToBlizOptions("AuraAlarm")
-        
+	
 	self.db:RegisterDefaults({
 		profile = {
-            auras = {},
-            duration = 1,
-            color = {1, 0, 0},
-            soundFile = "None",
-            flashBackground = true,
-            x = 0,
-            y = 0,
-            mouse = true
+	    auras = {},
+	    duration = 1,
+	    color = {1, 0, 0},
+	    soundFile = "None",
+	    flashBackground = true,
+	    x = 0,
+	    y = 0,
+	    mouse = true
 		}
 	})
 	
@@ -337,8 +353,13 @@ function AuraAlarm:OnInitialize()
 	self.DAIconFrame.Icon:SetWidth(24)
 
 	self.DAWatchFrame.obj = self
-	self.DAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
-	self.DAWatchFrame.active = true
+	if supportModes[self.db.profile.mode or 1] == L["Determined"] then 
+		self.DAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
+	end
+
+	self.DAWatchFrame.active = false
+	
+	self:ChangeMode(self.db.profile.mode or 1)
 end
 
 function AuraAlarm:OnEnable()
@@ -364,24 +385,45 @@ end
 
 function AuraAlarm:WatchForAura(elapsed)
 	self.timer = (self.timer or 0) + elapsed
+	self.dropTimer = (self.dropTimer or 0) + elapsed
 
-	if self.active and (self.active_timer or 16) > 15 then
-		self.obj.DAIconFrame:SetAlpha(0)
-		self.active = false
-		self.active_timer = 0
-	end
-
-	if not self.active and this.timer > .5 then
-		for i = 0, 80 do
+	if this.timer > .5 and not self.active then
+		for i = 1, 40 do
 			for k, v in pairs(self.obj.db.profile.auras) do
-				local name, count, expirationTime, id
-				if alarmTypes[(v.type or 1)] == L["Harmful"] then
-					name, _, _, count, _, _, expirationTime, _, _, _, id = UnitAura(v.unit or "player", i)
+				local aura = v
+				local name, icon, count, expirationTime, id, _
+				if auraTypes[v.type or 1] == L["Harmful"] then
+					name, _, icon, count, _, _, expirationTime, _, _, _, id = UnitDebuff(v.unit or "player", i)
 				else
-					name, _, _, count, _, _, expirationTime, _, _, _, id = UnitBuff(v.unit or "player", i)
+					name, _, icon, count, _, _, expirationTime, _, _, _, id = UnitBuff(v.unit or "player", i)
 				end
-				if id then
-					local name = GetSpellInfo(id)
+
+				self.obj:Print(name)
+
+				local isStacked = true
+				local stackText = ""
+
+				if count == 0 or count == nil then
+					isStacked = false
+				else
+					stackText = tostring(count)
+				end
+
+				local stackTest = (isStacked and aura.count == count) or isStacked == false
+
+				self.obj.DAIconFrame.Text:SetText(stackText)
+
+				if isStacked and name then
+					self.obj.DAIconFrame:SetWidth(80)
+				elseif name then
+					self.obj.DAIconFrame:SetWidth(44)
+				end
+
+				if name == v.name then
+					self.obj:Print(name)
+				end
+
+				if name and not self.active then
 					if name == v.name then
 						self.obj.DAFrame:SetBackdropColor(v.color[1], v.color[2], v.color[3], v.color[4])
 						if alarmModes[v.mode] == L["Persist"] then 
@@ -393,15 +435,25 @@ function AuraAlarm:WatchForAura(elapsed)
 							UIFrameFlash(self.obj.DAIconFrame, .3, .3, 3.6, false, 0, 3)
 						end
 						self.active = true
-						self.fallOff = expirationTime - GetTime()
-					end	
+					end
 				end
-			end
+				if name == v.name then
+					PlaySoundFile(LSM:Fetch("sound", soundFiles[v.soundFile]))
+					if auraTypes[aura.type] == L["Harmful"] then
+						
+						self.obj.DAIconFrame.Icon:SetTexture(icon)
+					else
+						self.obj.DAIconFrame.Icon:SetTexture(icon)
+					end
+					self.fallOff = expirationTime - GetTime()
+					self.fallTimer = 0
+					self.count = count
+				end
+                        end
 		end
 		this.timer = 0
 	end
-	if self.active and self.timer > self.fallOff then
-		self.obj.DAIconFrame:SetAlpha(0)
+	if self.active and (self.Falltimer or 16) > (self.fallOff or 15) then
 		self.active = false
 		self.timer = 0
 		if self.wasPersist then
@@ -418,32 +470,30 @@ end
 function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 	local _, eventtype, _, _, _, _, dst_name, _, _, aura_name, _, aura_type = ...
 
+	if supportModes[self.db.profile.mode or 1] == L["Determined"] then return end
+
 	if (eventtype ~= "SPELL_AURA_APPLIED" and eventtype ~= "SPELL_AURA_REMOVED") then return end
 	
-	if 1 then
-		return
-	end
-
 	for k, v in pairs(self.db.profile.auras) do
 		local aura = v
 		if aura_name == v.name and dst_name == UnitName(aura.unit or "player") then
 			
-			local stacks
+			local count
 			if aura_type == "DEBUFF" then 
-				stacks = select(4, UnitAura(aura.unit or "player", aura_name, "", "HARMFUL"))
+				count = select(4, UnitAura(aura.unit or "player", aura_name, "", "HARMFUL"))
 			else
-				stacks = select(4, UnitAura(aura.unit or "player", aura_name, "", "HELPFUL"))
+				count = select(4, UnitAura(aura.unit or "player", aura_name, "", "HELPFUL"))
 			end
 			local isStacked = true
 			local stackText = ""
 
-			if stacks == 0 or stacks == nil then
+			if count == 0 or count == nil then
 				isStacked = false
 			else
-				stackText = tostring(stacks)
+				stackText = tostring(count)
 			end
 
-			local stackTest = (isStacked and aura.stacks == stacks) or isStacked == false
+			local stackTest = (isStacked and aura.count == count) or isStacked == false
 
 			self.DAIconFrame.Text:SetText(stackText)
 
@@ -482,6 +532,14 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 		self:BuildAurasOpts()
 	end
     
+end
+
+function AuraAlarm:ChangeMode(v)
+	if supportModes[v] == L["Normal"] then
+		self.DAWatchFrame:SetScript("OnUpdate", nil)
+	else
+		self.DAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
+	end
 end
 
 function AuraAlarm:AddAuraUnderMouse()
