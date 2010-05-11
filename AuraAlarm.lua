@@ -87,7 +87,7 @@ local opts = {
 		},
 		mode = {
 			name = L["Support Mode"],
-			desc = L["Select between determined and normal mode."],
+			desc = L["Select between determined and normal mode. Use 'Determined' for events that don't show up in the combat log."],
 			type = "select",
 			values = supportModes,
 			get = function()
