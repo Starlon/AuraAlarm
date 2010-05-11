@@ -41,18 +41,13 @@ local auraTypes = {L["Harmful"], L["Helpful"]}
 
 local supportModes = {L["Normal"], L["Determined"]}
 
-local hideIcon
+local hideIcon = function(self, elapsed)
+	self.timer = (self.timer or 0) + 1
 
-do
-	local timer
-	hideIcon = function(self, elapsed)
-		timer = (timer or 0) + 1
-
-		if timer > 30 then
-			AuraAlarm.obj.DAIconFrame:SetAlpha(0)
-			AuraAlarm.DAIconFrame:SetScript("OnUpdate", nil)
-			timer = 0
-		end
+	if self.timer > 30 then
+		AuraAlarm.DAIconFrame:SetAlpha(0)
+		AuraAlarm.DAIconFrame:SetScript("OnUpdate", nil)
+		self.timer = 0
 	end
 end
 
@@ -79,6 +74,7 @@ local opts = {
 				AuraAlarm.DAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
 				AuraAlarm.DAIconFrame:SetAlpha(1)
 				AuraAlarm.DAIconFrame:SetScript("OnUpdate", hideIcon)
+				AuraAlarm.DAIconFrame.timer = 0
 			end,
 			min = -math.floor(GetScreenWidth()/2 + 0.5),
 			max = math.floor(GetScreenWidth()/2 + 0.5),
@@ -98,6 +94,7 @@ local opts = {
 				AuraAlarm.DAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
 				AuraAlarm.DAIconFrame:SetAlpha(1)
 				AuraAlarm.DAIconFrame:SetScript("OnUpdate", hideIcon)
+				AuraAlarm.DAIconFrame.timer = 0
 
 			end,
 			min = -math.floor(GetScreenHeight()/2 + 0.5),
@@ -439,7 +436,6 @@ function AuraAlarm:WatchForAura(elapsed)
 
 				local stackTest = (isStacked and aura.count == count) or isStacked == false
 
-				self.obj.DAIconFrame.Text:SetText(stackText)
 
 				if isStacked and name then
 					self.obj.DAIconFrame:SetWidth(80)
@@ -474,10 +470,9 @@ function AuraAlarm:WatchForAura(elapsed)
 					else
 						self.obj.DAIconFrame.Icon:SetTexture(icon)
 					end
-					self.obj:Print(name)
+					self.obj.DAIconFrame.Text:SetText(stackText)
 					self.fallOff = expirationTime - GetTime()
 					self.fallTimer = 0
-					self.count = count
 				end
                         end
 		end
@@ -487,16 +482,15 @@ function AuraAlarm:WatchForAura(elapsed)
 		self.active = false
 		self.timer = 0
 		if self.wasPersist then
-			UIFrameFadeOut(self.DAFrame, .3, 1, 0)
+			UIFrameFadeOut(self.obj.DAFrame, .3, 1, 0)
 			if show_icon then 
-				UIFrameFadeOut(self.DAIconFrame, .3, 1, 0)
+				UIFrameFadeOut(self.obj.DAIconFrame, .3, 1, 0)
 			end
 			self.wasPersist = false
+		else
+			UIFrameFadeOut(self.obj.DAFrame, .3, 1, 0)
 		end
-		UIFrameFadeOut(self.obj.DAFrame, .3, .3, 1.6, 0, 1)
-		if self.show_icon then
-			UIFrameFadeOut(self.obj.DAIconFrame, .3, .3, 1.6, 0, 1)
-		end
+		self.obj:Print("ended")
 		self.Falltimer = 0
 	end
 
