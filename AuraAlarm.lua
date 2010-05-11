@@ -413,7 +413,7 @@ function AuraAlarm:WatchForAura(elapsed)
 
 	local show_icon
 
-	if this.timer > .5 and not self.active then
+	if this.timer > .5 then
 		for i = 1, 40 do
 			for k, v in pairs(self.obj.db.profile.auras) do
 				local aura = v
@@ -448,7 +448,7 @@ function AuraAlarm:WatchForAura(elapsed)
 						self.obj.DAFrame:SetBackdropColor(v.color[1], v.color[2], v.color[3], v.color[4])
 						if alarmModes[v.mode] == L["Persist"] then 
 							UIFrameFadeIn(self.obj.DAFrame, .3, 0, 1)
-							if v.show_icon == nil or v.show_icon then
+							if v.show_icon then
 								UIFrameFadeIn(self.obj.DAIconFrame, .3, 0, 1)
 							end
 							self.wasPersist = true
@@ -483,14 +483,13 @@ function AuraAlarm:WatchForAura(elapsed)
 		self.timer = 0
 		if self.wasPersist then
 			UIFrameFadeOut(self.obj.DAFrame, .3, 1, 0)
-			if show_icon then 
+			if self.show_icon then 
 				UIFrameFadeOut(self.obj.DAIconFrame, .3, 1, 0)
 			end
 			self.wasPersist = false
 		else
 			UIFrameFadeOut(self.obj.DAFrame, .3, 1, 0)
 		end
-		self.obj:Print("ended")
 		self.Falltimer = 0
 	end
 
