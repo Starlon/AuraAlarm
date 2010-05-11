@@ -35,11 +35,26 @@ LSM:Register("sound", "Netherstorm", [[Sound\Doodad\NetherstormCrackLighting01.w
 
 local soundFiles = LSM:List("sound")
 
-local alarmModes = {L["Flash Background"], L["Persist"], L["None"]}
+local alarmModes = {L["Flash Background"], L["Persist"]}
 
 local auraTypes = {L["Harmful"], L["Helpful"]}
 
 local supportModes = {L["Normal"], L["Determined"]}
+
+local hideIcon
+
+do
+	local timer
+	hideIcon = function(self, elapsed)
+		timer = (timer or 0) + 1
+
+		if timer > 30 then
+			AuraAlarm.obj.DAIconFrame:SetAlpha(0)
+			AuraAlarm.DAIconFrame:SetScript("OnUpdate", nil)
+			timer = 0
+		end
+	end
+end
 
 local opts = { 
 	type = 'group',
@@ -62,6 +77,8 @@ local opts = {
 				AuraAlarm.db.profile.x = v
 				AuraAlarm.DAIconFrame:ClearAllPoints()
 				AuraAlarm.DAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
+				AuraAlarm.DAIconFrame:SetAlpha(1)
+				AuraAlarm.DAIconFrame:SetScript("OnUpdate", hideIcon)
 			end,
 			min = -math.floor(GetScreenWidth()/2 + 0.5),
 			max = math.floor(GetScreenWidth()/2 + 0.5),
@@ -79,6 +96,9 @@ local opts = {
 				AuraAlarm.db.profile.y = v
 				AuraAlarm.DAIconFrame:ClearAllPoints()
 				AuraAlarm.DAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
+				AuraAlarm.DAIconFrame:SetAlpha(1)
+				AuraAlarm.DAIconFrame:SetScript("OnUpdate", hideIcon)
+
 			end,
 			min = -math.floor(GetScreenHeight()/2 + 0.5),
 			max = math.floor(GetScreenHeight()/2 + 0.5),
@@ -87,7 +107,7 @@ local opts = {
 		},
 		mode = {
 			name = L["Support Mode"],
-			desc = L["Select between determined and normal mode. Use 'Determined' for events that don't show up in the combat log."],
+			desc = L["Use 'Determined' for events that don't show up in the combat log."],
 			type = "select",
 			values = supportModes,
 			get = function()
@@ -370,7 +390,6 @@ function AuraAlarm:OnInitialize()
 
 	self.DAWatchFrame.active = false
 	
-	self:ChangeMode(self.db.profile.mode or 1)
 end
 
 function AuraAlarm:OnEnable()
@@ -379,6 +398,7 @@ function AuraAlarm:OnEnable()
 	self.DAFrame:Show()
 	self.DAIconFrame:SetAlpha(0)
 	self.DAIconFrame:Show()
+	self:ChangeMode(self.db.profile.mode or 1)
 end
 
 function AuraAlarm:OnDisable()
@@ -387,11 +407,7 @@ function AuraAlarm:OnDisable()
 	end
 	self.DAFrame:Hide()
 	self.DAIconFrame:Hide()
-end
-
-function AuraAlarm:OnTooltipUpdate()
-	GameTooltip:AddLine("AuraAlarm")
-	GameTooltip:AddLine("|cffffff00Right-click|r to open menu.")
+	self:ChangeMode(1)
 end
 
 function AuraAlarm:WatchForAura(elapsed)
@@ -477,8 +493,10 @@ function AuraAlarm:WatchForAura(elapsed)
 			end
 			self.wasPersist = false
 		end
-		self.obj.DAFrame:SetAlpha(0)
-		self.obj.DAIconFrame:SetAlpha(0)
+		UIFrameFadeOut(self.obj.DAFrame, .3, .3, 1.6, 0, 1)
+		if self.show_icon then
+			UIFrameFadeOut(self.obj.DAIconFrame, .3, .3, 1.6, 0, 1)
+		end
 		self.Falltimer = 0
 	end
 
@@ -528,12 +546,16 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 				if eventtype == "SPELL_AURA_APPLIED" and stackTest then
 					self.DAFrame:SetBackdropColor(v.color[1], v.color[2], v.color[3], v.color[4])
 					UIFrameFadeIn(self.DAFrame, .3, 0, 1)
-					UIFrameFadeIn(self.DAIconFrame, .3, 0, 1)
+					if v.show_icon then
+						UIFrameFadeIn(self.DAIconFrame, .3, 0, 1)
+					end
 					self.DAFrame:SetScript("OnUpdate", cleanup) -- all alarms have a hard timeout of 5 minutes before hiding the background frame
 					self.DAIconFrame:SetScript("OnUpdate", cleanup) -- this is because sometimes the combat log stops working
 				elseif stackTest then
 					UIFrameFadeOut(self.DAFrame, .3, 1, 0)
-					UIFrameFadeOut(self.DAIconFrame, .3, 1, 0)
+					if v.show_icon then
+						UIFrameFadeOut(self.DAIconFrame, .3, 1, 0)
+					end
 				end
 			end
 			if eventtype == "SPELL_AURA_APPLIED" then 
@@ -554,8 +576,10 @@ end
 function AuraAlarm:ChangeMode(v)
 	if supportModes[v] == L["Normal"] then
 		self.DAWatchFrame:SetScript("OnUpdate", nil)
+		self.RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	else
 		self.DAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
+		self:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	end
 end
 

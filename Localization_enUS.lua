@@ -42,6 +42,6 @@ L["Type"] = true
 L["Normal"] = true
 L["Determined"] = true
 L["Support Mode"] = true
-L["Select between determined and normal mode. Use 'Determined' for events that don't show up in the combat log."] = true
+L["Use 'Determined' for events that don't show up in the combat log."] = true
 L["Show Icon"] = true
 L["Show icon frame"] = true
