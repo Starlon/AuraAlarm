@@ -226,6 +226,17 @@ function AuraAlarm:BuildAurasOpts()
 					end,
 					order=8
 				},
+				show_icon = {
+					name = L["Show Icon"],
+					desc = L["Show icon frame"],
+					type = "toggle",
+					get = function()
+						return self.db.profile.auras[k].show_icon or true
+					end,
+					set = function(info, v)
+						self.db.profile.auras[k].show_icon = v
+					end
+				},
 				remove = {
 					name = L["Remove"],
 					type = 'execute',
@@ -385,7 +396,7 @@ end
 
 function AuraAlarm:WatchForAura(elapsed)
 	self.timer = (self.timer or 0) + elapsed
-	self.dropTimer = (self.dropTimer or 0) + elapsed
+	self.fallTimer = (self.fallTimer or 0) + elapsed
 
 	if this.timer > .5 and not self.active then
 		for i = 1, 40 do
@@ -398,7 +409,6 @@ function AuraAlarm:WatchForAura(elapsed)
 					name, _, icon, count, _, _, expirationTime, _, _, _, id = UnitBuff(v.unit or "player", i)
 				end
 
-				self.obj:Print(name)
 
 				local isStacked = true
 				local stackText = ""
@@ -428,16 +438,20 @@ function AuraAlarm:WatchForAura(elapsed)
 						self.obj.DAFrame:SetBackdropColor(v.color[1], v.color[2], v.color[3], v.color[4])
 						if alarmModes[v.mode] == L["Persist"] then 
 							UIFrameFadeIn(self.obj.DAFrame, .3, 0, 1)
-							UIFrameFadeIn(self.obj.DAIconFrame, .3, 0, 1)
+							if v.show_icon then
+								UIFrameFadeIn(self.obj.DAIconFrame, .3, 0, 1)
+							end
 							self.wasPersist = true
 						else
 							UIFrameFlash(self.obj.DAFrame, .3, .3, 1.6, false, 0, 1)
-							UIFrameFlash(self.obj.DAIconFrame, .3, .3, 3.6, false, 0, 3)
+							if v.show_icon then
+								UIFrameFlash(self.obj.DAIconFrame, .3, .3, 3.6, false, 0, 3)
+							end
 						end
 						self.active = true
 					end
 				end
-				if name == v.name then
+				if name and name == v.name and (isStacked and v.count == count or true) then
 					PlaySoundFile(LSM:Fetch("sound", soundFiles[v.soundFile]))
 					if auraTypes[aura.type] == L["Harmful"] then
 						
@@ -445,6 +459,7 @@ function AuraAlarm:WatchForAura(elapsed)
 					else
 						self.obj.DAIconFrame.Icon:SetTexture(icon)
 					end
+					self.obj:Print(name)
 					self.fallOff = expirationTime - GetTime()
 					self.fallTimer = 0
 					self.count = count
@@ -453,7 +468,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		end
 		this.timer = 0
 	end
-	if self.active and (self.Falltimer or 16) > (self.fallOff or 15) then
+	if self.active and (self.fallTimer or 16) > (self.fallOff or 15) then
 		self.active = false
 		self.timer = 0
 		if self.wasPersist then
@@ -463,6 +478,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		end
 		self.obj.DAFrame:SetAlpha(0)
 		self.obj.DAIconFrame:SetAlpha(0)
+		self.Falltimer = 0
 	end
 
 end
