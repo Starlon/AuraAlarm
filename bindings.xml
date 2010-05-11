@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="ADDDEBUFF" description="Add debuff under the mouse" header="DEBUFFALARM">
+		DebuffAlarm:AddDebuffUnderMouse()
+	</Binding>
+</Bindings>
