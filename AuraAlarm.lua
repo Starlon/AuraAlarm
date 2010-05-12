@@ -350,17 +350,19 @@ function AuraAlarm:BuildAurasOpts()
 	hi = low + hi
 
 	for k,v in pairs(self.captured_auras) do
+		local text = k
+		self:Print(v)
+		if v == "DEBUFF" then text = text .. L[" (D)"] end
 		opts.args.auras.args.add.args[k] = {
-			name = k,
+			name = text,
 			type = 'execute',
-			desc = "Add " .. k .. (v == "DEBUFF" and "(D)" or ""),
 			func = function()
 				self.db.profile.auras[#self.db.profile.auras+1] = {name=k, color={1,0,0,.4}, soundFile=getLSMIndexByName("sound", "None"), mode=1, type=v == "DEBUFF" and 1 or 2} 
 				self.captured_auras[k] = nil
 				self:BuildAurasOpts()
 				self:Print(L["%s added."]:format(k))
 			end,
-			order = (v == "DEBUFF" and low) or hi
+			order = v == "DEBUFF" and low or hi
 		}
 		if v == "DEBUFF" then
 			low = low + 1
@@ -494,7 +496,7 @@ function AuraAlarm:WatchForAura(elapsed)
 								end
 							end
 							if not test then
-								self.obj.captured_auras[name] = v
+								self.obj.captured_auras[name] = type
 								self.obj.DARebuildFrame:SetScript("OnUpdate", self.obj.ProcessCaptures)
 							end
 						end

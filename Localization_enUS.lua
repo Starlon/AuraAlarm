@@ -47,3 +47,4 @@ L["Use 'Determined' for events that don't show up in the combat log."] = true
 L["Show Icon"] = true
 L["Show icon frame"] = true
 L["Determined Mode Rate (in ms)"] = true
+L[" (D)"] = true -- Some tag meaning "Debuff"
