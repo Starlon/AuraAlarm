@@ -13,15 +13,15 @@ local AuraAlarm = _G.AuraAlarm
 
 AuraAlarm.hasIcon = true
 
-AuraAlarm.DAFrame = CreateFrame("Frame", "DAFrame", UIParent)
-AuraAlarm.DAIconFrame = CreateFrame("Frame", "DAIconFrame", UIParent)
-AuraAlarm.DAWatchFrame = CreateFrame("Frame")
-AuraAlarm.DARebuildFrame = CreateFrame("Frame")
+AuraAlarm.AAFrame = CreateFrame("Frame", "AAFrame", UIParent)
+AuraAlarm.AAIconFrame = CreateFrame("Frame", "AAIconFrame", UIParent)
+AuraAlarm.AAWatchFrame = CreateFrame("Frame")
+AuraAlarm.AARebuildFrame = CreateFrame("Frame")
 
-AuraAlarm.DAFrame.obj = AuraAlarm
-AuraAlarm.DAIconFrame.obj = AuraAlarm
-AuraAlarm.DAWatchFrame.obj = AuraAlarm
-AuraAlarm.DARebuildFrame.obj = AuraAlarm
+AuraAlarm.AAFrame.obj = AuraAlarm
+AuraAlarm.AAIconFrame.obj = AuraAlarm
+AuraAlarm.AAWatchFrame.obj = AuraAlarm
+AuraAlarm.AARebuildFrame.obj = AuraAlarm
 
 local L = LibStub("AceLocale-3.0"):GetLocale("AuraAlarm")
 
@@ -53,8 +53,8 @@ local hideIcon = function(self, elapsed)
 	self.timer = (self.timer or 0) + 1
 
 	if self.timer > 30 then
-		AuraAlarm.DAIconFrame:SetAlpha(0)
-		AuraAlarm.DAIconFrame:SetScript("OnUpdate", nil)
+		AuraAlarm.AAIconFrame:SetAlpha(0)
+		AuraAlarm.AAIconFrame:SetScript("OnUpdate", nil)
 		self.timer = 0
 	end
 end
@@ -78,11 +78,11 @@ local opts = {
 			end,
 			set = function(info, v)
 				AuraAlarm.db.profile.x = v
-				AuraAlarm.DAIconFrame:ClearAllPoints()
-				AuraAlarm.DAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
-				AuraAlarm.DAIconFrame:SetAlpha(1)
-				AuraAlarm.DAIconFrame:SetScript("OnUpdate", hideIcon)
-				AuraAlarm.DAIconFrame.timer = 0
+				AuraAlarm.AAIconFrame:ClearAllPoints()
+				AuraAlarm.AAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
+				AuraAlarm.AAIconFrame:SetAlpha(1)
+				AuraAlarm.AAIconFrame:SetScript("OnUpdate", hideIcon)
+				AuraAlarm.AAIconFrame.timer = 0
 			end,
 			min = -math.floor(GetScreenWidth()/2 + 0.5),
 			max = math.floor(GetScreenWidth()/2 + 0.5),
@@ -98,11 +98,11 @@ local opts = {
 			end,
 			set = function(info, v)
 				AuraAlarm.db.profile.y = v
-				AuraAlarm.DAIconFrame:ClearAllPoints()
-				AuraAlarm.DAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
-				AuraAlarm.DAIconFrame:SetAlpha(1)
-				AuraAlarm.DAIconFrame:SetScript("OnUpdate", hideIcon)
-				AuraAlarm.DAIconFrame.timer = 0
+				AuraAlarm.AAIconFrame:ClearAllPoints()
+				AuraAlarm.AAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
+				AuraAlarm.AAIconFrame:SetAlpha(1)
+				AuraAlarm.AAIconFrame:SetScript("OnUpdate", hideIcon)
+				AuraAlarm.AAIconFrame.timer = 0
 
 			end,
 			min = -math.floor(GetScreenHeight()/2 + 0.5),
@@ -351,7 +351,6 @@ function AuraAlarm:BuildAurasOpts()
 
 	for k,v in pairs(self.captured_auras) do
 		local text = k
-		self:Print(v)
 		if v == "DEBUFF" then text = text .. L[" (D)"] end
 		opts.args.auras.args.add.args[k] = {
 			name = text,
@@ -398,65 +397,65 @@ function AuraAlarm:OnInitialize()
 	self.captured_auras = {}
 	self:BuildAurasOpts()	
 	
-	self.DAFrame:SetFrameStrata("BACKGROUND")
-	self.DAFrame:SetFrameLevel(0)
-	self.DAFrame:SetBackdrop({
+	self.AAFrame:SetFrameStrata("BACKGROUND")
+	self.AAFrame:SetFrameLevel(0)
+	self.AAFrame:SetBackdrop({
 		bgFile = "Interface\\ChatFrame\\ChatFrameBackground", 
 		tile = true, 
 		tileSize = 16,
 		insets = {left = 0, right = 0, top = 0, bottom = 0},
 	})
-	self.DAFrame:ClearAllPoints()
-	self.DAFrame:SetAllPoints(UIParent)
+	self.AAFrame:ClearAllPoints()
+	self.AAFrame:SetAllPoints(UIParent)
 	
 	if not self.db.profile.mouse then self.db.profile.mouse = false end
 	if not self.db.profile.x then self.db.profile.x = 0 end
 	if not self.db.profile.y then self.db.profile.y = 0 end
 
-	self.DAIconFrame:SetFrameStrata("BACKGROUND")
-	self.DAIconFrame:SetHeight(44)
-	self.DAIconFrame:SetWidth(80)
-	self.DAIconFrame:EnableMouse(self.db.profile.locked or false)
-	self.DAIconFrame:SetMovable(true)
-	self.DAIconFrame:SetPoint("CENTER", UIParent, self.db.profile.x, self.db.profile.y);
-	self.DAIconFrame:SetFrameStrata("DIALOG")
-	self.DAIconFrame:SetFrameLevel(0)
-	self.DAIconFrame:SetBackdrop({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+	self.AAIconFrame:SetFrameStrata("BACKGROUND")
+	self.AAIconFrame:SetHeight(44)
+	self.AAIconFrame:SetWidth(80)
+	self.AAIconFrame:EnableMouse(self.db.profile.locked or false)
+	self.AAIconFrame:SetMovable(true)
+	self.AAIconFrame:SetPoint("CENTER", UIParent, self.db.profile.x, self.db.profile.y);
+	self.AAIconFrame:SetFrameStrata("DIALOG")
+	self.AAIconFrame:SetFrameLevel(0)
+	self.AAIconFrame:SetBackdrop({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
 		tile = true,
 		tileSize = 16,
 		edgeFile="Interface\\Tooltips\\UI-Tooltip-Border", 
 		edgeSize=16, 
 		insets = { left = 4, right = 4, top = 4, bottom = 4}})
-	self.DAIconFrame:SetBackdropColor(0, 1, 0, 1)
-	self.DAIconFrame:SetBackdropBorderColor(0, 0, 0, 1)
+	self.AAIconFrame:SetBackdropColor(0, 1, 0, 1)
+	self.AAIconFrame:SetBackdropBorderColor(0, 0, 0, 1)
 
-	self.DAIconFrame.Text = self.DAIconFrame:CreateFontString("DAtext", "LEFT")
-	self.DAIconFrame.Text:SetPoint("LEFT", 34, 0)
-	self.DAIconFrame.Text:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE, MONOCHROME")
-	self.DAIconFrame.Text:SetFontObject(GameFontNormal)
+	self.AAIconFrame.Text = self.AAIconFrame:CreateFontString("AAtext", "LEFT")
+	self.AAIconFrame.Text:SetPoint("LEFT", 34, 0)
+	self.AAIconFrame.Text:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE, MONOCHROME")
+	self.AAIconFrame.Text:SetFontObject(GameFontNormal)
 
-	self.DAIconFrame.Icon = self.DAIconFrame:CreateTexture(nil,"DIALOG")
-	self.DAIconFrame.Icon:SetPoint("LEFT", 10, 0)
-	self.DAIconFrame.Icon:SetTexture(select(3, GetSpellInfo("Slam")))
-	self.DAIconFrame.Icon:SetHeight(24)
-	self.DAIconFrame.Icon:SetWidth(24)
+	self.AAIconFrame.Icon = self.AAIconFrame:CreateTexture(nil,"DIALOG")
+	self.AAIconFrame.Icon:SetPoint("LEFT", 10, 0)
+	self.AAIconFrame.Icon:SetTexture(select(3, GetSpellInfo("Slam")))
+	self.AAIconFrame.Icon:SetHeight(24)
+	self.AAIconFrame.Icon:SetWidth(24)
 
-	self.DAWatchFrame.obj = self
+	self.AAWatchFrame.obj = self
 	local mode = supportModes[self.db.profile.mode or 1]
 	if self.db.profile.mode > 1  then -- Determined and More Determined
-		self.DAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
+		self.AAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
 	end
 
-	self.DAWatchFrame.active = false
+	self.AAWatchFrame.active = false
 	
 end
 
 function AuraAlarm:OnEnable()
 	self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-	self.DAFrame:SetBackdropColor(0, 0, 0, 0)
-	self.DAFrame:Show()
-	self.DAIconFrame:SetAlpha(0)
-	self.DAIconFrame:Show()
+	self.AAFrame:SetBackdropColor(0, 0, 0, 0)
+	self.AAFrame:Show()
+	self.AAIconFrame:SetAlpha(0)
+	self.AAIconFrame:Show()
 	self:ChangeMode(self.db.profile.mode or 1)
 end
 
@@ -464,8 +463,8 @@ function AuraAlarm:OnDisable()
 	if self:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED") then 
 		self:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED") 
 	end
-	self.DAFrame:Hide()
-	self.DAIconFrame:Hide()
+	self.AAFrame:Hide()
+	self.AAIconFrame:Hide()
 	self:ChangeMode(1)
 end
 
@@ -497,7 +496,7 @@ function AuraAlarm:WatchForAura(elapsed)
 							end
 							if not test then
 								self.obj.captured_auras[name] = type
-								self.obj.DARebuildFrame:SetScript("OnUpdate", self.obj.ProcessCaptures)
+								self.obj.AARebuildFrame:SetScript("OnUpdate", self.obj.ProcessCaptures)
 							end
 						end
 					end
@@ -523,23 +522,23 @@ function AuraAlarm:WatchForAura(elapsed)
 
 
 				if isStacked and name then
-					self.obj.DAIconFrame:SetWidth(80)
+					self.obj.AAIconFrame:SetWidth(80)
 				elseif name then
-					self.obj.DAIconFrame:SetWidth(44)
+					self.obj.AAIconFrame:SetWidth(44)
 				end
 
 				if name and name == v.name and not self.active and (isStacked and count == v.count or not isStacked)then
-					self.obj.DAFrame:SetBackdropColor(v.color[1], v.color[2], v.color[3], v.color[4])
+					self.obj.AAFrame:SetBackdropColor(v.color[1], v.color[2], v.color[3], v.color[4])
 					if alarmModes[v.mode] == L["Persist"] then 
-						UIFrameFadeIn(self.obj.DAFrame, .3, 0, 1)
+						UIFrameFadeIn(self.obj.AAFrame, .3, 0, 1)
 						if v.show_icon then
-							UIFrameFadeIn(self.obj.DAIconFrame, .3, 0, 1)
+							UIFrameFadeIn(self.obj.AAIconFrame, .3, 0, 1)
 						end
 						self.wasPersist = true
 					else
-						UIFrameFlash(self.obj.DAFrame, .3, .3, 1.6, false, 0, 1)
+						UIFrameFlash(self.obj.AAFrame, .3, .3, 1.6, false, 0, 1)
 						if v.show_icon == nil or v.show_icon then
-							UIFrameFlash(self.obj.DAIconFrame, .3, .3, 3.6, false, 0, 3)
+							UIFrameFlash(self.obj.AAIconFrame, .3, .3, 3.6, false, 0, 3)
 						end
 					end
 					self.show_icon = v.show_icon
@@ -550,11 +549,11 @@ function AuraAlarm:WatchForAura(elapsed)
 					PlaySoundFile(LSM:Fetch("sound", soundFiles[v.soundFile]))
 					if auraTypes[aura.type] == L["Harmful"] then
 						
-						self.obj.DAIconFrame.Icon:SetTexture(icon)
+						self.obj.AAIconFrame.Icon:SetTexture(icon)
 					else
-						self.obj.DAIconFrame.Icon:SetTexture(icon)
+						self.obj.AAIconFrame.Icon:SetTexture(icon)
 					end
-					self.obj.DAIconFrame.Text:SetText(stackText)
+					self.obj.AAIconFrame.Text:SetText(stackText)
 					self.fallOff = expirationTime - GetTime()
 					self.fallTimer = 0
 				end
@@ -566,13 +565,13 @@ function AuraAlarm:WatchForAura(elapsed)
 		self.active = false
 		self.timer = 0
 		if self.wasPersist then
-			UIFrameFadeOut(self.obj.DAFrame, .3, 1, 0)
+			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
 			if self.show_icon then 
-				UIFrameFadeOut(self.obj.DAIconFrame, .3, 1, 0)
+				UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
 			end
 			self.wasPersist = false
 		else
-			UIFrameFadeOut(self.obj.DAFrame, .3, 1, 0)
+			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
 		end
 		self.Falltimer = 0
 	end
@@ -607,37 +606,37 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 
 			local stackTest = (isStacked and aura.count == count) or isStacked == false
 
-			self.DAIconFrame.Text:SetText(stackText)
+			self.AAIconFrame.Text:SetText(stackText)
 
 			if isStacked then
-				self.DAIconFrame:SetWidth(80)
+				self.AAIconFrame:SetWidth(80)
 			else
-				self.DAIconFrame:SetWidth(44)
+				self.AAIconFrame:SetWidth(44)
 			end
 
 			if alarmModes[v.mode] == L["Flash Background"] and eventtype == "SPELL_AURA_APPLIED" and stackTest then
-				self.DAFrame:SetBackdropColor(v.color[1], v.color[2], v.color[3], v.color[4])
-				UIFrameFlash(self.DAFrame, .3, .3, 1.6, false, 0, 1) 
-				UIFrameFlash(self.DAIconFrame, .3, .3, 3.6, false, 0, 3)
+				self.AAFrame:SetBackdropColor(v.color[1], v.color[2], v.color[3], v.color[4])
+				UIFrameFlash(self.AAFrame, .3, .3, 1.6, false, 0, 1) 
+				UIFrameFlash(self.AAIconFrame, .3, .3, 3.6, false, 0, 3)
 			elseif alarmModes[v.mode] == L["Persist"] then
 				if eventtype == "SPELL_AURA_APPLIED" and stackTest then
-					self.DAFrame:SetBackdropColor(v.color[1], v.color[2], v.color[3], v.color[4])
-					UIFrameFadeIn(self.DAFrame, .3, 0, 1)
+					self.AAFrame:SetBackdropColor(v.color[1], v.color[2], v.color[3], v.color[4])
+					UIFrameFadeIn(self.AAFrame, .3, 0, 1)
 					if v.show_icon then
-						UIFrameFadeIn(self.DAIconFrame, .3, 0, 1)
+						UIFrameFadeIn(self.AAIconFrame, .3, 0, 1)
 					end
-					self.DAFrame:SetScript("OnUpdate", cleanup) -- all alarms have a hard timeout of 5 minutes before hiding the background frame
-					self.DAIconFrame:SetScript("OnUpdate", cleanup) -- this is because sometimes the combat log stops working
+					self.AAFrame:SetScript("OnUpdate", cleanup) -- all alarms have a hard timeout of 5 minutes before hiding the background frame
+					self.AAIconFrame:SetScript("OnUpdate", cleanup) -- this is because sometimes the combat log stops working
 				elseif stackTest then
-					UIFrameFadeOut(self.DAFrame, .3, 1, 0)
+					UIFrameFadeOut(self.AAFrame, .3, 1, 0)
 					if v.show_icon then
-						UIFrameFadeOut(self.DAIconFrame, .3, 1, 0)
+						UIFrameFadeOut(self.AAIconFrame, .3, 1, 0)
 					end
 				end
 			end
 			if eventtype == "SPELL_AURA_APPLIED" then 
 				PlaySoundFile(LSM:Fetch("sound", soundFiles[v.soundFile]))
-				self.DAIconFrame.Icon:SetTexture(select(3, UnitAura(aura.unit or "player", aura_name, "", "HARMFUL")))
+				self.AAIconFrame.Icon:SetTexture(select(3, UnitAura(aura.unit or "player", aura_name, "", "HARMFUL")))
 			end
 			return
 		end
@@ -645,17 +644,17 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 	
 	if not self.captured_auras[aura_name] and dst_name == UnitName("player") then 
 		self.captured_auras[aura_name] = aura_type 
-		self.DARebuildFrame:SetScript("OnUpdate", self.ProcessCaptures)
+		self.AARebuildFrame:SetScript("OnUpdate", self.ProcessCaptures)
 	end
     
 end
 
 function AuraAlarm:ChangeMode(v)
 	if supportModes[v] == L["Normal"] then
-		self.DAWatchFrame:SetScript("OnUpdate", nil)
+		self.AAWatchFrame:SetScript("OnUpdate", nil)
 		self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	else
-		self.DAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
+		self.AAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
 		self:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	end
 end
