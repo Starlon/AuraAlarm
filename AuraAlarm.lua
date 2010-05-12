@@ -15,7 +15,13 @@ AuraAlarm.hasIcon = true
 
 AuraAlarm.DAFrame = CreateFrame("Frame", "DAFrame", UIParent)
 AuraAlarm.DAIconFrame = CreateFrame("Frame", "DAIconFrame", UIParent)
-AuraAlarm.DAWatchFrame = CreateFrame("Frame", "DAWatchFrame", UIParent)
+AuraAlarm.DAWatchFrame = CreateFrame("Frame")
+AuraAlarm.DARebuildFrame = CreateFrame("Frame")
+
+AuraAlarm.DAFrame.obj = AuraAlarm
+AuraAlarm.DAIconFrame.obj = AuraAlarm
+AuraAlarm.DAWatchFrame.obj = AuraAlarm
+AuraAlarm.DARebuildFrame.obj = AuraAlarm
 
 local L = LibStub("AceLocale-3.0"):GetLocale("AuraAlarm")
 
@@ -33,13 +39,15 @@ LSM:Register("sound", "Gong", [[Sound\Doodad\G_GongTroll01.wav]])
 LSM:Register("sound", "Mortar", [[Sound\Doodad\G_Mortar.wav]])
 LSM:Register("sound", "Netherstorm", [[Sound\Doodad\NetherstormCrackLighting01.wav]])
 
-local soundFiles = LSM:List("sound")
+local soundFiles = LSM:List("sound") -- BUG: This list isn't always the same depending on what addons installed what sound references.
 
 local alarmModes = {L["Flash Background"], L["Persist"]}
 
 local auraTypes = {L["Harmful"], L["Helpful"]}
 
-local supportModes = {L["Normal"], L["Determined"]}
+local auraNames = {"DEBUFF", "BUFF"}
+
+local supportModes = {L["Normal"], L["Determined"], L["More Determined"]}
 
 local hideIcon = function(self, elapsed)
 	self.timer = (self.timer or 0) + 1
@@ -115,9 +123,37 @@ local opts = {
 				AuraAlarm:ChangeMode(v)
 			end,
 			order = 4
+		},
+		determined_rate = {
+			name = L["Determined Mode Rate (in ms)"],
+			type = "input",
+			get = function()
+				return tostring((AuraAlarm.db.profile.determined_rate or 1) * 100)
+			end,
+			set = function(info, v) 
+				AuraAlarm.db.profile.determined_rate = tonumber(v) / 100
+			end,
+			pattern = "%d"
 		}
 	}
 }
+
+local function count(tbl)
+	local count = 0
+	for k in pairs(tbl) do
+		count = count + 1
+	end
+	return count
+end
+
+local function table_find(tbl, el)
+	for k, v in pairs(tbl) do
+		if v == el then
+			return k
+		end
+	end
+	return nil
+end
 
 local function getLSMIndexByName(category, name)
 	for k, v in pairs(LSM:List(category)) do
@@ -248,11 +284,13 @@ function AuraAlarm:BuildAurasOpts()
 					desc = L["Show icon frame"],
 					type = "toggle",
 					get = function()
-						return self.db.profile.auras[k].show_icon or true
+						local show_icon = self.db.profile.auras[k].show_icon
+						return show_icon == nil or show_icon == true
 					end,
 					set = function(info, v)
 						self.db.profile.auras[k].show_icon = v
-					end
+					end,
+					order=9
 				},
 				remove = {
 					name = L["Remove"],
@@ -290,23 +328,45 @@ function AuraAlarm:BuildAurasOpts()
 		},
 		order=1
 	}
-    opts.args.auras.args.add.args.captured_header = {
-	type = "header",
-	name = L["Captured Auras - Click to add"],
-	order=2
-    }
+
+	if self.captured_auras and count(self.captured_auras) > 0 then
+		opts.args.auras.args.add.args.captured_header = {
+			type = "header",
+			name = L["Captured Auras - Click to add"],
+			order=2
+		}
+	end
+
+	local low, hi = 3, 3
+	
+	for i, v in pairs(self.captured_auras or {})  do
+		if self.captured == "DEBUFF" then
+			low = low + 1
+		else
+			hi = hi + 1
+		end
+	end
+
+	hi = low + hi
+
 	for k,v in pairs(self.captured_auras) do
 		opts.args.auras.args.add.args[k] = {
 			name = k,
 			type = 'execute',
-			desc = "Add " .. k,
+			desc = "Add " .. k .. (v == "DEBUFF" and "(D)" or ""),
 			func = function()
-				self.db.profile.auras[#self.db.profile.auras+1] = {name=k, color={1,0,0,.4}, soundFile=getLSMIndexByName("sound", "None"), mode=1} 
+				self.db.profile.auras[#self.db.profile.auras+1] = {name=k, color={1,0,0,.4}, soundFile=getLSMIndexByName("sound", "None"), mode=1, type=v == "DEBUFF" and 1 or 2} 
 				self.captured_auras[k] = nil
 				self:BuildAurasOpts()
 				self:Print(L["%s added."]:format(k))
-			end
+			end,
+			order = (v == "DEBUFF" and low) or hi
 		}
+		if v == "DEBUFF" then
+			low = low + 1
+		else
+			hi = hi + 1
+		end
 	end
 end
 
@@ -346,7 +406,6 @@ function AuraAlarm:OnInitialize()
 	})
 	self.DAFrame:ClearAllPoints()
 	self.DAFrame:SetAllPoints(UIParent)
-	self.DAFrame.obj = self
 	
 	if not self.db.profile.mouse then self.db.profile.mouse = false end
 	if not self.db.profile.x then self.db.profile.x = 0 end
@@ -381,7 +440,8 @@ function AuraAlarm:OnInitialize()
 	self.DAIconFrame.Icon:SetWidth(24)
 
 	self.DAWatchFrame.obj = self
-	if supportModes[self.db.profile.mode or 1] == L["Determined"] then 
+	local mode = supportModes[self.db.profile.mode or 1]
+	if self.db.profile.mode > 1  then -- Determined and More Determined
 		self.DAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
 	end
 
@@ -412,13 +472,36 @@ function AuraAlarm:WatchForAura(elapsed)
 	self.fallTimer = (self.fallTimer or 0) + elapsed
 
 	local show_icon
+	local name, icon, count, expirationTime, id, _
 
-	if this.timer > .5 then
-		for i = 1, 40 do
-			for k, v in pairs(self.obj.db.profile.auras) do
+	if self.timer > (self.obj.db.profile.determined_rate or 1) then
+		for k, v in pairs(self.obj.db.profile.auras) do
+			for i = 1, 40 do
 				local aura = v
-				local name, icon, count, expirationTime, id, _
-				if auraTypes[v.type or 1] == L["Harmful"] then
+
+				if supportModes[self.obj.db.profile.mode] == L["More Determined"]  then for i, type in pairs(auraNames) do
+					for i = 1, 40 do
+						if type == "DEBUFF" then
+							name = UnitDebuff("player", i)
+						else
+							name = UnitBuff("player", i)
+						end 
+						if name and not self.obj.captured_auras[name] then
+							local test = false
+							for i = 1, #self.obj.db.profile.auras do
+								if self.obj.db.profile.auras[i].name == name then
+									test = true
+								end
+							end
+							if not test then
+								self.obj.captured_auras[name] = v
+								self.obj.DARebuildFrame:SetScript("OnUpdate", self.obj.ProcessCaptures)
+							end
+						end
+					end
+				end end
+
+				if auraNames[v.type or 1] == "DEBUFF" then
 					name, _, icon, count, _, _, expirationTime, _, _, _, id = UnitDebuff(v.unit or "player", i)
 				else
 					name, _, icon, count, _, _, expirationTime, _, _, _, id = UnitBuff(v.unit or "player", i)
@@ -443,26 +526,25 @@ function AuraAlarm:WatchForAura(elapsed)
 					self.obj.DAIconFrame:SetWidth(44)
 				end
 
-				if name and not self.active then
-					if name == v.name then
-						self.obj.DAFrame:SetBackdropColor(v.color[1], v.color[2], v.color[3], v.color[4])
-						if alarmModes[v.mode] == L["Persist"] then 
-							UIFrameFadeIn(self.obj.DAFrame, .3, 0, 1)
-							if v.show_icon then
-								UIFrameFadeIn(self.obj.DAIconFrame, .3, 0, 1)
-							end
-							self.wasPersist = true
-						else
-							UIFrameFlash(self.obj.DAFrame, .3, .3, 1.6, false, 0, 1)
-							if v.show_icon == nil or v.show_icon then
-								UIFrameFlash(self.obj.DAIconFrame, .3, .3, 3.6, false, 0, 3)
-							end
+				if name and name == v.name and not self.active and (isStacked and count == v.count or not isStacked)then
+					self.obj.DAFrame:SetBackdropColor(v.color[1], v.color[2], v.color[3], v.color[4])
+					if alarmModes[v.mode] == L["Persist"] then 
+						UIFrameFadeIn(self.obj.DAFrame, .3, 0, 1)
+						if v.show_icon then
+							UIFrameFadeIn(self.obj.DAIconFrame, .3, 0, 1)
 						end
-						self.show_icon = v.show_icon
-						self.active = true
+						self.wasPersist = true
+					else
+						UIFrameFlash(self.obj.DAFrame, .3, .3, 1.6, false, 0, 1)
+						if v.show_icon == nil or v.show_icon then
+							UIFrameFlash(self.obj.DAIconFrame, .3, .3, 3.6, false, 0, 3)
+						end
 					end
+					self.show_icon = v.show_icon
+					self.active = true
 				end
 				if name and name == v.name and (isStacked and v.count == count or true) then
+					local soundFile = soundFiles[v.soundFile]
 					PlaySoundFile(LSM:Fetch("sound", soundFiles[v.soundFile]))
 					if auraTypes[aura.type] == L["Harmful"] then
 						
@@ -498,7 +580,7 @@ end
 function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 	local _, eventtype, _, _, _, _, dst_name, _, _, aura_name, _, aura_type = ...
 
-	if supportModes[self.db.profile.mode or 1] == L["Determined"] then return end
+	if self.db.profile.mode > 1 then return end -- just in case
 
 	if (eventtype ~= "SPELL_AURA_APPLIED" and eventtype ~= "SPELL_AURA_REMOVED") then return end
 	
@@ -559,9 +641,9 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 		end
 	end
 	
-	if not self.captured_auras[aura_name] then 
-		self.captured_auras[aura_name] = true 
-		self:BuildAurasOpts()
+	if not self.captured_auras[aura_name] and dst_name == UnitName("player") then 
+		self.captured_auras[aura_name] = aura_type 
+		self.DARebuildFrame:SetScript("OnUpdate", self.ProcessCaptures)
 	end
     
 end
@@ -569,7 +651,7 @@ end
 function AuraAlarm:ChangeMode(v)
 	if supportModes[v] == L["Normal"] then
 		self.DAWatchFrame:SetScript("OnUpdate", nil)
-		self.RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+		self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	else
 		self.DAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
 		self:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
@@ -599,3 +681,18 @@ function AuraAlarm:AddAuraUnderMouse()
 		i = i + 1
 	end
 end
+
+function AuraAlarm:ProcessCaptures(elapsed)
+	self.timer = (self.timer or 0) + elapsed
+
+	if self.timer > 1 then
+		if InCombatLockdown() then
+			self.timer = 0
+			return
+		end
+		self.obj:BuildAurasOpts()
+		self.timer = 0
+		self:SetScript("OnUpdate", nil)
+	end
+end
+
