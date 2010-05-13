@@ -47,6 +47,12 @@ L["Use 'Determined' for events that don't show up in the combat log."] = true
 L["Show Icon"] = true
 L["Show icon frame"] = true
 L["Determined Mode Rate (in ms)"] = true
-L[" (D)"] = true -- Some tag meaning "Debuff"
+L[" (D)"] = true -- Some short tag meaning "Debuff"
 L["Blink"] = true
 L["Blink Rate"] = true
+L["0 means do not consider stack count."] = true
+L["Persisting Sound"] = true
+L["Toggle repeating sound throughout aura. This only pertains to Persist Mode."] = true
+L["Sound Rate"] = true
+L["Rate at which Persisting Sound will fire."] = true
+
