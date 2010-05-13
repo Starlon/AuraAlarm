@@ -566,9 +566,7 @@ function AuraAlarm:WatchForAura(elapsed)
 						self.fallOff = 100
 					end
 					if (v.mode or 1) == table_find(alarmModes, "Blink") then
-						self.obj:Print("blink")
 						self.fallOff = (v.blink_rate or 1) / 100
-						self.obj:Print(self.fallTimer .. " " .. self.fallOff)
 					end
 					self.fallTimer = 0
 				end
@@ -592,7 +590,6 @@ function AuraAlarm:WatchForAura(elapsed)
 		self.active = false
 		self.timer = 0
 		if self.wasPersist then
-			self.obj:Print("was persist")
 			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
 			if self.show_icon or true then 
 				UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
