@@ -48,3 +48,5 @@ L["Show Icon"] = true
 L["Show icon frame"] = true
 L["Determined Mode Rate (in ms)"] = true
 L[" (D)"] = true -- Some tag meaning "Debuff"
+L["Blink"] = true
+L["Blink Rate"] = true

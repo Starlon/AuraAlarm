@@ -41,7 +41,7 @@ LSM:Register("sound", "Netherstorm", [[Sound\Doodad\NetherstormCrackLighting01.w
 
 local soundFiles = LSM:List("sound") -- BUG: This list isn't always the same depending on what addons installed what sound references.
 
-local alarmModes = {L["Flash Background"], L["Persist"]}
+local alarmModes = {L["Flash Background"], L["Persist"], L["Blink"]}
 
 local auraTypes = {L["Harmful"], L["Helpful"]}
 
@@ -221,7 +221,7 @@ function AuraAlarm:BuildAurasOpts()
 					type = "select",
 					desc = L["Sound to play"],
 					get = function()
-						return self.db.profile.auras[k].soundFile
+						return self.db.profile.auras[k].soundFile or getLSMIndexByName("None") or 1
 					end,
 					set = function(info, v)
 						PlaySoundFile(LSM:Fetch("sound", soundFiles[v]))
@@ -235,13 +235,25 @@ function AuraAlarm:BuildAurasOpts()
 					type = "select",
 					desc = L["Alarm mode"],
 					get = function()
-						return self.db.profile.auras[k].mode
+						return self.db.profile.auras[k].mode or 1
 					end,
 					set = function(info, v)
 						self.db.profile.auras[k].mode = v
 					end,
 					values = alarmModes,
 					order=5
+				},
+				blink_rate = {
+					name = L["Blink Rate"],
+					type = "input",
+					get = function() 
+						return tostring((self.db.profile.auras[k].blink_rate or 1) / 100)
+					end,
+					set = function(info, v)
+						self.db.profile.auras[k].blink_rate = tonumber(v) * 100
+					end,
+					pattern = "%d",
+					order = 6
 				},
 				unit = {
 					name = L["Unit"], 
@@ -252,7 +264,7 @@ function AuraAlarm:BuildAurasOpts()
 					set = function(info, v)
 						self.db.profile.auras[k].unit = v
 					end,
-					order=6 
+					order = 7
 				},
 				count = {
 					name = L["Stacks"],
@@ -264,7 +276,7 @@ function AuraAlarm:BuildAurasOpts()
 						self.db.profile.auras[k].count = tonumber(v)
 					end,
 					pattern = "%d",
-					order=7
+					order = 8
 				},
 				type = {
 					name = L["Type"],
@@ -277,7 +289,7 @@ function AuraAlarm:BuildAurasOpts()
 					set = function(info, v)
 						self.db.profile.auras[k].type = v
 					end,
-					order=8
+					order=9
 				},
 				show_icon = {
 					name = L["Show Icon"],
@@ -290,7 +302,7 @@ function AuraAlarm:BuildAurasOpts()
 					set = function(info, v)
 						self.db.profile.auras[k].show_icon = v
 					end,
-					order=9
+					order=10
 				},
 				remove = {
 					name = L["Remove"],
@@ -527,51 +539,65 @@ function AuraAlarm:WatchForAura(elapsed)
 					self.obj.AAIconFrame:SetWidth(44)
 				end
 
-				if name and name == v.name and not self.active and (isStacked and count == v.count or not isStacked)then
+				local first_time = false
+				if name and name == v.name and not self.active and ((isStacked and count == v.count) or not isStacked) then
 					self.obj.AAFrame:SetBackdropColor(v.color[1], v.color[2], v.color[3], v.color[4])
-					if alarmModes[v.mode] == L["Persist"] then 
+					if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"]then 
 						UIFrameFadeIn(self.obj.AAFrame, .3, 0, 1)
-						if v.show_icon then
+						if v.show_icon == nil or v.show_icon then
 							UIFrameFadeIn(self.obj.AAIconFrame, .3, 0, 1)
 						end
 						self.wasPersist = true
 					else
 						UIFrameFlash(self.obj.AAFrame, .3, .3, 1.6, false, 0, 1)
-						if v.show_icon == nil or v.show_icon then
+						if v.show_icon or true then
 							UIFrameFlash(self.obj.AAIconFrame, .3, .3, 3.6, false, 0, 3)
 						end
 					end
 					self.show_icon = v.show_icon
 					self.active = true
+					first_time = true
 				end
-				if name and name == v.name and (isStacked and v.count == count or true) then
-					local soundFile = soundFiles[v.soundFile]
-					PlaySoundFile(LSM:Fetch("sound", soundFiles[v.soundFile]))
-					if auraTypes[aura.type] == L["Harmful"] then
-						
-						self.obj.AAIconFrame.Icon:SetTexture(icon)
-					else
-						self.obj.AAIconFrame.Icon:SetTexture(icon)
-					end
+				if name and name == v.name and (count == nil or count == 0 or v.count ~= count) then
+					self.obj.AAIconFrame.Icon:SetTexture(icon)
 					self.obj.AAIconFrame.Text:SetText(stackText)
 					self.fallOff = expirationTime - GetTime()
+					if self.fallOff < 0 then
+						self.fallOff = 100
+					end
+					if (v.mode or 1) == table_find(alarmModes, "Blink") then
+						self.obj:Print("blink")
+						self.fallOff = (v.blink_rate or 1) / 100
+						self.obj:Print(self.fallTimer .. " " .. self.fallOff)
+					end
 					self.fallTimer = 0
+				end
+				if self.active and (self.fallTimer or 0xdead) > (self.fallOff or 0xbeef) then
+					PlaySoundFile(LSM:Fetch("sound", soundFiles[v.soundFile]))
+					UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
+					if v.show_icon then
+						UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
+					end
+					self.active = false
+					
+				end
+				if not v.count or first_time then
+					PlaySoundFile(LSM:Fetch("sound", soundFiles[v.soundFile]))
 				end
                         end
 		end
 		this.timer = 0
 	end
-	if self.active and (self.fallTimer or 16) > (self.fallOff or 15) then
+	if self.active and (self.fallTimer or 0xdead) > (self.fallOff or 0xbeef)  then
 		self.active = false
 		self.timer = 0
 		if self.wasPersist then
+			self.obj:Print("was persist")
 			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
-			if self.show_icon then 
+			if self.show_icon or true then 
 				UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
 			end
 			self.wasPersist = false
-		else
-			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
 		end
 		self.Falltimer = 0
 	end
