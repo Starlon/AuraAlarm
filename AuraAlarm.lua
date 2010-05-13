@@ -39,7 +39,7 @@ LSM:Register("sound", "Gong", [[Sound\Doodad\G_GongTroll01.wav]])
 LSM:Register("sound", "Mortar", [[Sound\Doodad\G_Mortar.wav]])
 LSM:Register("sound", "Netherstorm", [[Sound\Doodad\NetherstormCrackLighting01.wav]])
 
-local soundFiles = LSM:List("sound") -- BUG: This list isn't always the same depending on what addons installed what sound references.
+local soundFiles = LSM:List("sound") 
 
 local alarmModes = {L["Flash Background"], L["Persist"], L["Blink"]}
 
@@ -221,14 +221,14 @@ function AuraAlarm:BuildAurasOpts()
 					type = "select",
 					desc = L["Sound to play"],
 					get = function()
-						return self.db.profile.auras[k].soundFile or getLSMIndexByName("None") or 1
+						return table_find(LSM:List("sound"), self.db.profile.auras[k].soundFile or "None")
 					end,
 					set = function(info, v)
 						PlaySoundFile(LSM:Fetch("sound", soundFiles[v]))
-						self.db.profile.auras[k].soundFile = v
+						self.db.profile.auras[k].soundFile = soundFiles[v]
 					end,
 					values = soundFiles,
-					order=4
+					order = 5
 				},
 				mode = {
 					name = L["Mode"],
@@ -241,19 +241,19 @@ function AuraAlarm:BuildAurasOpts()
 						self.db.profile.auras[k].mode = v
 					end,
 					values = alarmModes,
-					order=5
+					order = 6
 				},
 				blink_rate = {
 					name = L["Blink Rate"],
 					type = "input",
 					get = function() 
-						return tostring((self.db.profile.auras[k].blink_rate or 1) / 100)
+						return tostring((self.db.profile.auras[k].blink_rate or 1) * 100)
 					end,
 					set = function(info, v)
-						self.db.profile.auras[k].blink_rate = tonumber(v) * 100
+						self.db.profile.auras[k].blink_rate = tonumber(v) / 100
 					end,
 					pattern = "%d",
-					order = 6
+					order = 7
 				},
 				unit = {
 					name = L["Unit"], 
@@ -264,7 +264,7 @@ function AuraAlarm:BuildAurasOpts()
 					set = function(info, v)
 						self.db.profile.auras[k].unit = v
 					end,
-					order = 7
+					order = 8
 				},
 				count = {
 					name = L["Stacks"],
@@ -276,7 +276,7 @@ function AuraAlarm:BuildAurasOpts()
 						self.db.profile.auras[k].count = tonumber(v)
 					end,
 					pattern = "%d",
-					order = 8
+					order = 9
 				},
 				type = {
 					name = L["Type"],
@@ -289,7 +289,7 @@ function AuraAlarm:BuildAurasOpts()
 					set = function(info, v)
 						self.db.profile.auras[k].type = v
 					end,
-					order=9
+					order=10
 				},
 				show_icon = {
 					name = L["Show Icon"],
@@ -302,7 +302,7 @@ function AuraAlarm:BuildAurasOpts()
 					set = function(info, v)
 						self.db.profile.auras[k].show_icon = v
 					end,
-					order=10
+					order=11
 				},
 				remove = {
 					name = L["Remove"],
@@ -330,7 +330,7 @@ function AuraAlarm:BuildAurasOpts()
 				desc = L["Add a aura"],
 				usage = L["<New aura here>"],
 				set = function(info, v) 
-					self.db.profile.auras[#self.db.profile.auras+1] = {name=v, color={1,0,0,.4}, soundFile=getLSMIndexByName("sound", "None"), mode=1} 
+					self.db.profile.auras[#self.db.profile.auras+1] = {name=v, color={1,0,0,.4}, soundFile="None", mode=1} 
 					self:BuildAurasOpts() 
 					self:Print(L["%s added."]:format(v)) 
 				end,
@@ -368,7 +368,7 @@ function AuraAlarm:BuildAurasOpts()
 			name = text,
 			type = 'execute',
 			func = function()
-				self.db.profile.auras[#self.db.profile.auras+1] = {name=k, color={1,0,0,.4}, soundFile=getLSMIndexByName("sound", "None"), mode=1, type=v == "DEBUFF" and 1 or 2} 
+				self.db.profile.auras[#self.db.profile.auras+1] = {name=k, color={1,0,0,.4}, soundFile="None", mode=1, type=v == "DEBUFF" and 1 or 2} 
 				self.captured_auras[k] = nil
 				self:BuildAurasOpts()
 				self:Print(L["%s added."]:format(k))
@@ -483,6 +483,8 @@ end
 function AuraAlarm:WatchForAura(elapsed)
 	self.timer = (self.timer or 0) + elapsed
 	self.fallTimer = (self.fallTimer or 0) + elapsed
+	self.blinkTimer = (self.blinkTimer or 0) + elapsed
+	self.soundTimer = (self.soundTimer or 0xdeadbeef) + elapsed
 
 	local show_icon
 	local name, icon, count, expirationTime, id, _
@@ -550,7 +552,7 @@ function AuraAlarm:WatchForAura(elapsed)
 						self.wasPersist = true
 					else
 						UIFrameFlash(self.obj.AAFrame, .3, .3, 1.6, false, 0, 1)
-						if v.show_icon or true then
+						if v.show_icon == nil or v.show_icon then
 							UIFrameFlash(self.obj.AAIconFrame, .3, .3, 3.6, false, 0, 3)
 						end
 					end
@@ -559,39 +561,44 @@ function AuraAlarm:WatchForAura(elapsed)
 					first_time = true
 				end
 				if name and name == v.name and (count == nil or count == 0 or v.count ~= count) then
+					if not isStacked or (count or 1) ~= self.lastCount then
+						PlaySoundFile(LSM:Fetch("sound", soundFiles[getLSMIndexByName("sound", v.soundFile) or getLSMIndexByName("sound", "None")]))
+						self.lastCount = count
+					end
 					self.obj.AAIconFrame.Icon:SetTexture(icon)
 					self.obj.AAIconFrame.Text:SetText(stackText)
 					self.fallOff = expirationTime - GetTime()
 					if self.fallOff < 0 then
 						self.fallOff = 100
 					end
-					if (v.mode or 1) == table_find(alarmModes, "Blink") then
-						self.fallOff = (v.blink_rate or 1) / 100
-					end
 					self.fallTimer = 0
 				end
-				if self.active and (self.fallTimer or 0xdead) > (self.fallOff or 0xbeef) then
-					PlaySoundFile(LSM:Fetch("sound", soundFiles[v.soundFile]))
+--[[				if name and name == v.name and self.soundTimer > (self.fallOff / (expirationTime ~= 0 and expirationTime or 1)) then
+					PlaySoundFile(LSM:Fetch("sound", soundFiles[getLSMIndexByName("sound", v.soundFile) or 1]))
+					self.soundTimer = 0
+				end]]
+				if name == (v.name or "") and self.blinkTimer > (v.blink_rate or 0) and v.mode == table_find(alarmModes, L["Blink"])  then
 					UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
-					if v.show_icon then
+					if v.show_icon == nil or v.show_icon then
 						UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
 					end
 					self.active = false
-					
-				end
-				if not v.count or first_time then
-					PlaySoundFile(LSM:Fetch("sound", soundFiles[v.soundFile]))
+					if self.fallTimer > self.fallOff then
+						self.fallTimer = 0
+					end	
+					self.active = false
+					self.blinkTimer = 0
 				end
                         end
 		end
 		this.timer = 0
 	end
-	if self.active and (self.fallTimer or 0xdead) > (self.fallOff or 0xbeef)  then
+	if self.active and (self.fallTimer or 0xbeef) > (self.fallOff or 0xdead)  then
 		self.active = false
 		self.timer = 0
 		if self.wasPersist then
 			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
-			if self.show_icon or true then 
+			if self.show_icon == nil or self.show_icon then 
 				UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
 			end
 			self.wasPersist = false
@@ -658,7 +665,9 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 				end
 			end
 			if eventtype == "SPELL_AURA_APPLIED" then 
-				PlaySoundFile(LSM:Fetch("sound", soundFiles[v.soundFile]))
+				if v.playSound then
+					PlaySoundFile(LSM:Fetch("sound", soundFiles[v.soundFile and getLSMIndexByName("sound", v.soundFile or "None") or 1]))
+				end
 				self.AAIconFrame.Icon:SetTexture(select(3, UnitAura(aura.unit or "player", aura_name, "", "HARMFUL")))
 			end
 			return
