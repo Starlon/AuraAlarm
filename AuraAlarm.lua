@@ -696,7 +696,6 @@ function AuraAlarm:WatchForAura(elapsed)
 				end
 
 
-				self.obj:Print(name)
 				local isStacked = true
 				local stackText = ""
 
