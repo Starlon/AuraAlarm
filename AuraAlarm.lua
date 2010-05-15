@@ -49,7 +49,7 @@ local auraTypes = {L["Harmful"], L["Helpful"]}
 
 local auraNames = {"DEBUFF", "BUFF"}
 
-local supportModes = {L["Normal"], L["Determined"], L["More Determined"]}
+local supportModes = {L["Normal"], L["Determined"]}
 
 local NORML_MODE, DETERMINED_MODE, MORE_DETERMINED_MODE = 1, 2, 3
 
@@ -179,9 +179,9 @@ local function cleanup(frame, elapsed)
 end
 
 function AuraAlarm:BuildAurasOpts()
-	opts.args.auras.args = {}
+	self.opts.args.auras.args = {}
 	for k,v in ipairs(self.db.profile.auras) do
-		opts.args.auras.args["Aura" .. tostring(k)] = {
+		self.opts.args.auras.args["Aura" .. tostring(k)] = {
 			name = v.name,
 			desc = v.name,
 			type = 'group',
@@ -243,9 +243,9 @@ function AuraAlarm:BuildAurasOpts()
 					end,
 					set = function(info, v)
 						if v then
-							opts.args.auras.args["Aura" .. tostring(k)].args.soundRate.disabled = false
+							self.opts.args.auras.args["Aura" .. tostring(k)].args.soundRate.disabled = false
 						else
-							opts.args.auras.args["Aura" .. tostring(k)].args.soundRate.disabled = true
+							self.opts.args.auras.args["Aura" .. tostring(k)].args.soundRate.disabled = true
 						end
 						self.db.profile.auras[k].soundPersist = v
 					end,
@@ -255,7 +255,7 @@ function AuraAlarm:BuildAurasOpts()
 				soundRate = {
 					name = L["Sound Rate"],
 					type = "input",
-					desc = L["Rate at which Persisting Sound will fire."],
+					desc = L["Rate at which Persisting Sound will fire. This is in milliseconds."],
 					get = function()
 						return tostring(self.db.profile.auras[k].soundRate or 3)
 					end,
@@ -275,14 +275,15 @@ function AuraAlarm:BuildAurasOpts()
 					end,
 					set = function(info, v)
 						if alarmModes[v] == L["Persist"] then
-							opts.args.auras.args["Aura" .. tostring(k)].args.soundPersist.disabled = false
+							self.opts.args.auras.args["Aura" .. tostring(k)].args.soundPersist.disabled = false
 							if self.db.profile.auras[k].soundPersist then
-								opts.args.auras.args["Aura" .. tostring(k)].args.soundRate.disabled = false
+								self.opts.args.auras.args["Aura" .. tostring(k)].args.soundRate.disabled = false
 							end
 						else
-							opts.args.auras.args["Aura" .. tostring(k)].args.soundPersist.disabled = true
-							opts.args.auras.args["Aura" .. tostring(k)].args.soundRate.disabled = true
+							self.opts.args.auras.args["Aura" .. tostring(k)].args.soundPersist.disabled = true
+							self.opts.args.auras.args["Aura" .. tostring(k)].args.soundRate.disabled = true
 						end
+						self.AAWatchFrame.active = false
 						self.db.profile.auras[k].mode = v
 					end,
 					values = alarmModes,
@@ -365,7 +366,7 @@ function AuraAlarm:BuildAurasOpts()
 			order = k+2			
 		}
 	end
-	opts.args.auras.args.add = {
+	self.opts.args.auras.args.add = {
 		name = L["Add Aura"],
 		type = 'group',
 		desc = L["Add a aura"],
@@ -388,7 +389,7 @@ function AuraAlarm:BuildAurasOpts()
 	}
 
 	if self.captured_auras and count(self.captured_auras) > 0 then
-		opts.args.auras.args.add.args.captured_header = {
+		self.opts.args.auras.args.add.args.captured_header = {
 			type = "header",
 			name = L["Captured Auras - Click to add"],
 			order=2
@@ -410,7 +411,7 @@ function AuraAlarm:BuildAurasOpts()
 	for k,v in pairs(self.captured_auras) do
 		local text = k
 		if v == "DEBUFF" then text = text .. L[" (D)"] end
-		opts.args.auras.args.add.args[k] = {
+		self.opts.args.auras.args.add.args[k] = {
 			name = text,
 			type = 'execute',
 			func = function()
@@ -431,13 +432,94 @@ end
 
 function AuraAlarm:OnInitialize()	
 
-    self.db = LibStub("AceDB-3.0"):New("AuraAlarmDB")
+	self.db = LibStub("AceDB-3.0"):New("AuraAlarmDB")
 	
-    LibStub("AceConfig-3.0"):RegisterOptionsTable("AuraAlarm", opts)
+	local opts = { 
+		type = 'group',
+		args = {
+			auras = {
+				name = "Auras", 
+				type = 'group',
+				desc = L["Add and remove auras"],
+				args = {},
+				order = 1
+			},
+			x = {
+				name = "X",
+				desc = L["Frame x position"],
+				type = "range",
+				get = function()
+					return AuraAlarm.db.profile.x
+				end,
+				set = function(info, v)
+					AuraAlarm.db.profile.x = v
+					AuraAlarm.AAIconFrame:ClearAllPoints()
+					AuraAlarm.AAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
+					AuraAlarm.AAIconFrame:SetAlpha(1)
+					AuraAlarm.AAIconFrame:SetScript("OnUpdate", hideIcon)
+					AuraAlarm.AAIconFrame.timer = 0
+				end,
+				min = -math.floor(GetScreenWidth()/2 + 0.5),
+				max = math.floor(GetScreenWidth()/2 + 0.5),
+				step = 1,
+				order = 2
+			},
+			y = {
+				name = "Y",
+				desc = L["Frame y position"],
+				type = "range",
+				get = function()
+					return AuraAlarm.db.profile.y
+				end,
+				set = function(info, v)
+					AuraAlarm.db.profile.y = v
+					AuraAlarm.AAIconFrame:ClearAllPoints()
+					AuraAlarm.AAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
+					AuraAlarm.AAIconFrame:SetAlpha(1)
+					AuraAlarm.AAIconFrame:SetScript("OnUpdate", hideIcon)
+					AuraAlarm.AAIconFrame.timer = 0
+	
+				end,
+				min = -math.floor(GetScreenHeight()/2 + 0.5),
+				max = math.floor(GetScreenHeight()/2 + 0.5),
+				step = 1,
+				order = 3
+			},
+			mode = {
+				name = L["Support Mode"],
+				desc = L["Use 'Determined' for events that don't show up in the combat log."],
+				type = "select",
+				values = supportModes,
+				get = function()
+					return AuraAlarm.db.profile.mode or 1
+				end,
+				set  = function(info, v)
+					AuraAlarm.db.profile.mode = v
+					AuraAlarm:ChangeMode(v)
+				end,
+				order = 4
+			},
+			determined_rate = {
+				name = L["Determined Mode Rate (in ms)"],
+				type = "input",
+				get = function()
+					return tostring((AuraAlarm.db.profile.determined_rate or 1) * 100)
+				end,
+				set = function(info, v) 
+					AuraAlarm.db.profile.determined_rate = tonumber(v) / 100
+				end,
+				pattern = "%d"
+			}
+		}
+	}
+
+	self.opts = opts
+
+	LibStub("AceConfig-3.0"):RegisterOptionsTable("AuraAlarm", opts)
 
 	self:RegisterChatCommand("/da", "/auraalarm", opts)
     
-    AceConfigDialog:AddToBlizOptions("AuraAlarm")
+	AceConfigDialog:AddToBlizOptions("AuraAlarm")
 	
 	self.db:RegisterDefaults({
 		profile = {
@@ -500,7 +582,7 @@ function AuraAlarm:OnInitialize()
 
 	self.AAWatchFrame.obj = self
 	local mode = supportModes[self.db.profile.mode or 1]
-	if self.db.profile.mode ~= NORML_MODE  then -- Determined and More Determined
+	if self.db.profile.mode ~= NORML_MODE  then -- Determined
 		self.AAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
 	end
 
@@ -535,14 +617,57 @@ function AuraAlarm:WatchForAura(elapsed)
 	local show_icon
 	local name, icon, count, expirationTime, id, _
 
-	if not self.current_auras then self.current_auras = {} end
+	if not self.current_alarms then self.current_alarms = {} end
+
+	for i, type in pairs(auraNames) do
+		for i = 1, 40 do
+			if type == "DEBUFF" then
+				name = UnitDebuff("player", i)
+			else
+				name = UnitBuff("player", i)
+			end 
+			if name and not self.obj.captured_auras[name] then
+				local test = false
+				for i = 1, #self.obj.db.profile.auras do
+					if self.obj.db.profile.auras[i].name == name then
+						test = true
+					end
+				end
+				if not test then
+					self.obj.captured_auras[name] = type
+					self.obj.AARebuildFrame:SetScript("OnUpdate", self.obj.ProcessCaptures)
+				end
+			end
+		end
+	end
 
 	if self.timer > (self.obj.db.profile.determined_rate or 1) then
 		for k, v in pairs(self.obj.db.profile.auras) do
-			for i = 1, 40 do
-				local aura = v
+			for i, type in pairs(auraNames) do
+				for i = 1, 40 do
+					if type == "DEBUFF" then
+						name = UnitDebuff("player", i)
+					else
+						name = UnitBuff("player", i)
+					end 
+					if name and not self.obj.captured_auras[name] then
+						local test = false
+						for i = 1, #self.obj.db.profile.auras do
+							if self.obj.db.profile.auras[i].name == name then
+								test = true
+							end
+						end
+						if not test then
+							self.obj.captured_auras[name] = type
+							self.obj.AARebuildFrame:SetScript("OnUpdate", self.obj.ProcessCaptures)
+						end
+					end
+				end
+			end
 
-				if supportModes[self.obj.db.profile.mode] == L["More Determined"]  then for i, type in pairs(auraNames) do
+			for i = 1, 40 do
+
+				for i, type in pairs(auraNames) do
 					for i = 1, 40 do
 						if type == "DEBUFF" then
 							name = UnitDebuff("player", i)
@@ -562,7 +687,7 @@ function AuraAlarm:WatchForAura(elapsed)
 							end
 						end
 					end
-				end end
+				end
 
 				if auraNames[v.type or 1] == "DEBUFF" then
 					name, _, icon, count, _, _, expirationTime, _, _, _, id = UnitDebuff(v.unit or "player", i)
@@ -571,6 +696,7 @@ function AuraAlarm:WatchForAura(elapsed)
 				end
 
 
+				self.obj:Print(name)
 				local isStacked = true
 				local stackText = ""
 
@@ -604,7 +730,7 @@ function AuraAlarm:WatchForAura(elapsed)
 							UIFrameFlash(self.obj.AAIconFrame, .3, .3, 3.6, false, 0, 3)
 						end
 					end
-					self.current_auras = {name=name, type=auraNames[v.type or 1], unit=v.unit or "player", mode=v.mode, blinkRate=v.blinkRate}
+					self.current_alarms = {name=name, type=auraNames[v.type or 1], unit=v.unit or "player", mode=v.mode, blinkRate=v.blinkRate}
 					self.show_icon = v.show_icon
 					self.active = true
 					first_time = true
@@ -646,18 +772,19 @@ function AuraAlarm:WatchForAura(elapsed)
 
 	local activeAura = not self.active
 	if self.active then for i = 1, 40 do
-		if self.current_auras.name then
-			if self.current_auras.type == "DEBUFF" then
-				name = UnitDebuff(self.current_auras.unit, i)
+		if self.current_alarms.name then
+			if self.current_alarms.type == "DEBUFF" then
+				name = UnitDebuff(self.current_alarms.unit, i)
 			else
-				name = UnitBuff(self.current_auras.unit, i)
+				name = UnitBuff(self.current_alarms.unit, i)
 			end
-			if self.current_auras.name == name then
+			if self.current_alarms.name == name then
 				activeAura = true
 			end
 		end
 	end end
 
+	do return end
 	if self.active and (self.fallTimer or 0xbeef) > (self.fallOff or 0xdead) or not activeAura then
 		if self.wasPersist then
 			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
