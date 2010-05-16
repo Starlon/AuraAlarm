@@ -692,7 +692,7 @@ function AuraAlarm:WatchForAura(elapsed)
 				stackText = tostring(count)
 			end
 
-			local stackTest = (isStacked and aura.count == count) or not isStacked
+			local stackTest = (isStacked and aura and aura.count == count) or not isStacked
 
 
 			if isStacked and name then
