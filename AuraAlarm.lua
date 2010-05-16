@@ -642,13 +642,11 @@ function AuraAlarm:WatchForAura(elapsed)
 				auras[unit]['DEBUFF'][name] = {name=name, icon=icon, count=count, expirationTime=expirationTime, id=id, unit=v, i=i} 
 				auras[unit]['DEBUFF'][i] = auras[unit]['DEBUFF'][name]
 			end
---			if name then self.obj:Print(name) end
 			name, _, icon, count, _, _, expirationTime, _, _, _, id = UnitBuff(unit, i)
 			if name then 
 				auras[unit]['BUFF'][name] = {name=name, icon=icon, count=count, expirationTime=expirationTime, id=id, unit=v, i=i} 
 				auras[unit]['BUFF'][i] = auras[unit]['BUFF'][name]
 			end
---			if name then self.obj:Print(name) end
 		end
 
 	end
@@ -681,13 +679,10 @@ function AuraAlarm:WatchForAura(elapsed)
 				aura = at[typeNames[v.type or 1] ][v.name]
 			end
 
-			self.obj:Print(at[typeNames[v.type or 1]])
-
 			if aura then
 				name, icon, count, expirationTime, id = aura.name, aura.icon, aura.count, aura.expirationTime, aura.id
 			end
 
-			self.obj:Print(typeNames[v.type or 1])
 			local isStacked = true
 			local stackText = ""
 
