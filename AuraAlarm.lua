@@ -53,6 +53,8 @@ local supportModes = {L["Normal"], L["Determined"]}
 
 local NORML_MODE, DETERMINED_MODE, MORE_DETERMINED_MODE = 1, 2, 3
 
+local FADE_IN, FADE_OUT = 1, 2
+
 local hideIcon = function(self, elapsed)
 	self.timer = (self.timer or 0) + 1
 
@@ -207,6 +209,19 @@ function AuraAlarm:BuildAurasOpts()
 					end,
 					order=1
 				},
+				type = {
+					name = L["Type"],
+					desc = "AuraType",
+					type = "select",
+					values = auraTypes,
+					get = function()
+						return self.db.profile.auras[k].type or 1
+					end,
+					set = function(info, v)
+						self.db.profile.auras[k].type = v
+					end,
+					order=2
+				},
 				color = {
 					name = L["Color"],
 					type = 'color',
@@ -218,7 +233,7 @@ function AuraAlarm:BuildAurasOpts()
 						self.db.profile.auras[k].color.r, self.db.profile.auras[k].color.g, self.db.profile.auras[k].color.b, self.db.profile.auras[k].color.a = r * 255, g * 255, b * 255, a * 255
 					end,
 					hasAlpha = true,
-					order = 2
+					order = 3
 				},
 				soundFile = {
 					name = L["Warning Sound"],
@@ -232,7 +247,7 @@ function AuraAlarm:BuildAurasOpts()
 						self.db.profile.auras[k].soundFile = soundFiles[v]
 					end,
 					values = soundFiles,
-					order = 5
+					order = 4
 				},
 				soundPersist = {
 					name = L["Persisting Sound"],
@@ -250,7 +265,7 @@ function AuraAlarm:BuildAurasOpts()
 						self.db.profile.auras[k].soundPersist = v
 					end,
 					disabled = self.db.profile.auras[k].mode ~= PERSIST_MODE,
-					order = 6
+					order = 5
 				},
 				soundRate = {
 					name = L["Sound Rate"],
@@ -264,7 +279,7 @@ function AuraAlarm:BuildAurasOpts()
 					end,
 					pattern = "%d",
 					disabled = not (self.db.profile.auras[k].mode == PERSIST_MODE and self.db.profile.auras[k].soundPersist),
-					order = 7
+					order = 6
 				},
 				mode = {
 					name = L["Mode"],
@@ -283,13 +298,11 @@ function AuraAlarm:BuildAurasOpts()
 							self.opts.args.auras.args["Aura" .. tostring(k)].args.soundPersist.disabled = true
 							self.opts.args.auras.args["Aura" .. tostring(k)].args.soundRate.disabled = true
 						end
-						if self.AAWatchFrame.current_alarms then for i, v in ipairs(self.AAWatchFrame.current_alarms)  do
-							v.active = false
-						end end
 						self.db.profile.auras[k].mode = v
+						self.AAWatchFrame.active = false
 					end,
 					values = alarmModes,
-					order = 8
+					order = 7
 				},
 				blinkRate = {
 					name = L["Blink Rate"],
@@ -301,7 +314,7 @@ function AuraAlarm:BuildAurasOpts()
 						self.db.profile.auras[k].blinkRate = tonumber(v) / 100
 					end,
 					pattern = "%d",
-					order = 9
+					order = 8
 				},
 				unit = {
 					name = L["Unit"], 
@@ -312,7 +325,7 @@ function AuraAlarm:BuildAurasOpts()
 					set = function(info, v)
 						self.db.profile.auras[k].unit = v
 					end,
-					order = 10
+					order = 9
 				},
 				count = {
 					name = L["Stacks"],
@@ -325,20 +338,7 @@ function AuraAlarm:BuildAurasOpts()
 						self.db.profile.auras[k].count = tonumber(v)
 					end,
 					pattern = "%d",
-					order = 11
-				},
-				type = {
-					name = L["Type"],
-					desc = "AuraType",
-					type = "select",
-					values = auraTypes,
-					get = function()
-						return self.db.profile.auras[k].type or 1
-					end,
-					set = function(info, v)
-						self.db.profile.auras[k].type = v
-					end,
-					order=12
+					order = 10
 				},
 				show_icon = {
 					name = L["Show Icon"],
@@ -351,7 +351,7 @@ function AuraAlarm:BuildAurasOpts()
 					set = function(info, v)
 						self.db.profile.auras[k].show_icon = v
 					end,
-					order=13
+					order=12
 				},
 				remove = {
 					name = L["Remove"],
@@ -592,6 +592,9 @@ function AuraAlarm:OnEnable()
 	self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	self.AAFrame:SetBackdropColor(0, 0, 0, 0)
 	self.AAFrame:Show()
+	if self.db.profile.mode ~= NORML_MODE then	
+		self.AAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
+	end
 	self.AAIconFrame:SetAlpha(0)
 	self.AAIconFrame:Show()
 	self:ChangeMode(self.db.profile.mode or 1)
@@ -602,6 +605,7 @@ function AuraAlarm:OnDisable()
 		self:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED") 
 	end
 	self.AAFrame:Hide()
+	self.AAWatchFrame:SetScript("OnUpdate", nil)
 	self.AAIconFrame:Hide()
 	self:ChangeMode(1)
 end
@@ -616,17 +620,42 @@ function AuraAlarm:WatchForAura(elapsed)
 	local name, icon, count, expirationTime, id, _
 
 	if not self.current_alarms then self.current_alarms = {} end
-	if not self.current then self.current = 0 else self.current = self.current + 1 end
 
-	if self.current > #self.current_alarms then self.current = 0 end
+	local units = {}
+
+	for i, v in pairs(self.obj.db.profile.auras) do
+		units[#units + 1] = v.unit or "player"
+	end
+
+	if not units[1] then
+		units[1] = "player"
+	end
+
+	local auras = {}
+	
+	for _, unit in ipairs(units) do
+		
+		auras[unit] = {DEBUFF={}, BUFF={}}
+		for i = 1, 40 do
+			name, _, icon, count, _, _, expirationTime, _, _, _, id = UnitDebuff(unit, i)
+			if name then 
+				auras[unit]['DEBUFF'][name] = {name=name, icon=icon, count=count, expirationTime=expirationTime, id=id, unit=v, i=i} 
+				auras[unit]['DEBUFF'][i] = auras[unit]['DEBUFF'][name]
+			end
+--			if name then self.obj:Print(name) end
+			name, _, icon, count, _, _, expirationTime, _, _, _, id = UnitBuff(unit, i)
+			if name then 
+				auras[unit]['BUFF'][name] = {name=name, icon=icon, count=count, expirationTime=expirationTime, id=id, unit=v, i=i} 
+				auras[unit]['BUFF'][i] = auras[unit]['BUFF'][name]
+			end
+--			if name then self.obj:Print(name) end
+		end
+
+	end
 
 	for i, type in pairs(typeNames) do
 		for i = 1, 40 do
-			if type == "DEBUFF" then
-				name = UnitDebuff("player", i)
-			else
-				name = UnitBuff("player", i)
-			end 
+			name = auras["player"][type][i] and auras["player"][type][i].name
 			if name and not self.obj.captured_auras[name] then
 				local test = false
 				for i = 1, #self.obj.db.profile.auras do
@@ -641,160 +670,129 @@ function AuraAlarm:WatchForAura(elapsed)
 			end
 		end
 	end
+
 	if self.timer > (self.obj.db.profile.determined_rate or 1) then
 		for k, v in pairs(self.obj.db.profile.auras) do
 
-			for i = 1, 40 do
+			local aura
+			local at = auras[v.unit or "player"]
 
-				if typeNames[v.type or 1] == "DEBUFF" then
-					name, _, icon, count, _, _, expirationTime, _, _, _, id = UnitDebuff(v.unit or "player", i)
-				else
-					name, _, icon, count, _, _, expirationTime, _, _, _, id = UnitBuff(v.unit or "player", i)
-				end
+			if at and at[typeNames[v.type or 1] ] then
+				aura = at[typeNames[v.type or 1] ][v.name]
+			end
+
+			self.obj:Print(at[typeNames[v.type or 1]])
+
+			if aura then
+				name, icon, count, expirationTime, id = aura.name, aura.icon, aura.count, aura.expirationTime, aura.id
+			end
+
+			self.obj:Print(typeNames[v.type or 1])
+			local isStacked = true
+			local stackText = ""
+
+			if count == 0 or count == nil then
+				isStacked = false
+			else
+				stackText = tostring(count)
+			end
+
+			local stackTest = (isStacked and aura.count == count) or not isStacked
 
 
-				local isStacked = true
-				local stackText = ""
+			if isStacked and name then
+				self.obj.AAIconFrame:SetWidth(80)
+			elseif name then
+				self.obj.AAIconFrame:SetWidth(44)
+			end
 
-				if count == 0 or count == nil then
-					isStacked = false
-				else
-					stackText = tostring(count)
-				end
-
-				local stackTest = (isStacked and v.count == count) or not isStacked
-
-
-				if isStacked and name then
-					self.obj.AAIconFrame:SetWidth(80)
-				elseif name then
-					self.obj.AAIconFrame:SetWidth(44)
-				end
-
-				local first_time = false
-				if name and name == v.name and not (self.current_alarms[self.current] and self.current_alarms[self.current].active) and (isStacked and v.count == count or not isStacked) then
-					local r, g, b, a
-
-					local alarm = self.current_alarms[self.current]
-					if alarm then
-						r, g, b, a = 0, 0, 0, 0 --alarm.color.r, alarm.color.g, alarm.color.b, alarm.color.a
-					else
-						r, g, b, a = v.color.r / 255, v.color.g / 255, v.color.b / 255, v.color.a / 255
-					end
-
-					if #self.current_alarms > 1 then for i, v in ipairs(self.current_alarms) do
-						if i ~= self.current then
-							if v.a == 0 or v.a == 255 then
-
-								r = v.color.r / 255
-								g = v.color.g / 255
-								b = v.color.b / 255
-								a = 0xff / 255
-							else
-								r = (v.color.r * v.color.a + r * (255 - v.color.a)) / 255  / 255
-								g = (v.color.g * v.color.a + g * (255 - v.color.a)) / 255 / 255
-								b = (v.color.b * v.color.a + b * (255 - v.color.a)) / 255 / 255
-								a = 0xff / 255
-							end
-						end
-					end end
-
-					self.obj:Print(#self.current_alarms)
-					table.insert(self.current_alarms, 1, v)
-					self.current = 1
-
-					self.obj.AAFrame:SetBackdropColor(r, g, b, a)
-					if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
-						self.obj:Print("persist")
-						UIFrameFadeIn(self.obj.AAFrame, .3, 0, 1)
-						if v.show_icon == nil or v.show_icon then
-							UIFrameFadeIn(self.obj.AAIconFrame, .3, 0, 1)
-						end
-						self.current_alarms[self.current].wasPersist = true
-					else
-						UIFrameFlash(self.obj.AAFrame, .3, .3, 1.6, false, 0, 1)
-						if v.show_icon == nil or v.show_icon then
-							UIFrameFlash(self.obj.AAIconFrame, .3, .3, 3.6, false, 0, 3)
-						end
-					end
-					self.current_alarms[self.current].show_icon = v.show_icon
-					self.current_alarms[self.current].active = true
-					first_time = true
-					self.blinkTimer = 0
-				end
-				if name and name == v.name  then
-					if (isStacked and self.current_alarms[self.current] and  count ~= self.current_alarms[self.current].lastCount) or (v.soundPersist and self.current_alarms[self.current].soundTimer > (v.soundRate or 2) and v.mode == PERSIST_MODE) or first_time then
-						PlaySoundFile(LSM:Fetch("sound", soundFiles[getLSMIndexByName("sound", v.soundFile) or getLSMIndexByName("sound", "None")]))
-						if isStacked and count ~= self.lastCount then
-							self.lastCount = count
-						end
-						self.soundTimer = 0
-					end
-					self.obj.AAIconFrame.Icon:SetTexture(icon)
-					self.obj.AAIconFrame.Text:SetText(stackText)
-					self.current_alarms[self.current].fallOff = expirationTime - GetTime()
-					if self.current_alarms[self.current].fallOff < 0 then
-						self.current_alarms[self.current].fallOff = 0xdeadbeef
-					end
-					self.current_alarms[self.current].fallTimer = 0
-				end
-				if name == (v.name or "") and self.current_alarms[self.current] and  self.blinkTimer > (v.blinkRate or 1 + .6) and v.mode == table_find(alarmModes, L["Blink"]) and not first_time then
-					self.obj:Print("remove")
-					UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
+			local first_time = false
+			if name and name == v.name and not self.active and (isStacked and v.count == count or not isStacked) then
+				local r, g, b, a = 0, 0, 0, 0
+				
+				self.obj.AAFrame:SetBackdropColor(v.color.r / 255, v.color.g / 255, v.color.b / 255, v.color.a / 255)
+				if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
+					UIFrameFadeIn(self.obj.AAFrame, .3, 0, 1)
 					if v.show_icon == nil or v.show_icon then
-						UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
+						UIFrameFadeIn(self.obj.AAIconFrame, .3, 0, 1)
 					end
-					if self.current_alarms[self.current].fallTimer > self.current_alarms[self.current].fallOff then
-						self.current_alarms[self.current].fallTimer = 0
-					end	
-					self.current_alarms[self.current].firstSound = false
-					self.current_alarms[self.current].active = false
-					self.current_alarms[self.current].blinkTimer = 0
-					
-					table.remove(self.current_alarms, self.current)
-
-					if self.current > #self.current_alarms then
-						self.current = 0
-					end
-
-					for i, v in ipairs(self.current_alarms) do
-						v.active = false
+					self.wasPersist = true
+				else
+					UIFrameFlash(self.obj.AAFrame, .3, .3, 1.6, false, 0, 1)
+					if v.show_icon == nil or v.show_icon then
+						UIFrameFlash(self.obj.AAIconFrame, .3, .3, 3.6, false, 0, 3)
 					end
 				end
-                        end
+				self.current_auras = {name=name, type=auraTypes[v.type or 1], unit=v.unit or "player", mode=v.mode, blinkRate=v.blinkRate}
+				self.show_icon = v.show_icon
+				self.active = true
+				first_time = true
+				self.blinkTimer = 0
+			end
+			if name and name == v.name  then
+				if (isStacked and count ~= self.lastCount) or (v.soundPersist and self.soundTimer > (v.soundRate or 2) and v.mode == PERSIST_MODE) or first_time then
+					PlaySoundFile(LSM:Fetch("sound", soundFiles[getLSMIndexByName("sound", v.soundFile) or getLSMIndexByName("sound", "None")]))
+					if isStacked and count ~= self.lastCount then
+						self.lastCount = count
+					end
+					self.soundTimer = 0
+				end
+				self.obj.AAIconFrame.Icon:SetTexture(icon)
+				self.obj.AAIconFrame.Text:SetText(stackText)
+				self.fallOff = expirationTime - GetTime()
+				if self.fallOff < 0 then
+					self.fallOff = 0xdeadbeef
+				end
+				self.fallTimer = 0
+			end
+			if name == (v.name or "") and self.blinkTimer > (v.blinkRate or 1 + .6) and v.mode == table_find(alarmModes, L["Blink"]) and not first_time then
+				UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
+				if v.show_icon == nil or v.show_icon then
+					UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
+				end
+				if self.fallTimer > self.fallOff then
+					self.fallTimer = 0
+				end	
+				self.firstSound = false
+				self.active = false
+				self.blinkTimer = 0
+				self.blinkRate = v.blinkRate
+			end
 		end
-		self.timer = 0
+		this.timer = 0
 	end
 
 	local activeAura = false
-	if self.current_alarms[self.current] and self.current_alarms[self.current].active then for i = 1, 40 do
-		if self.current_alarms[self.current].name then
-			if self.current_alarms[self.current].type == "DEBUFF" then
-				name = UnitDebuff(self.current_alarms[self.current].unit or "player", i)
+	if self.current_alarms and self.active then for i = 1, 40 do
+		if self.current_alarms.name then
+			name = nil
+			if self.current_alarms.type == "DEBUFF" then
+				name = UnitDebuff(self.current_alarms.unit or "player", i)
 			else
-				name = UnitBuff(self.current_alarms[self.current].unit or "player", i)
+				name = UnitBuff(self.current_alarms.unit or "player", i)
 			end
-			if self.current_alarms[self.current].name == name then
+			local aura = auras[self.current_alarms.unit or "player"]
+
+			if aura then
+				aura = aura[typeNames[self.current_alarms.type]][name]
+				self.obj:Print("Test" .. aura)
+			end
+			if self.current_alarms.name == aura.name then
 				activeAura = true
 			end
 		end
 	end end
 
-	if self.current_alarms[self.current] and (self.current_alarms[self.current].active and (self.current_alarms[self.current].fallTimer or 0xbeef) > (self.current_alarms[self.current].fallOff or 0xdead) or not activeAura) then
-		if self.current_alarms[self.current].wasPersist then
+	if self.active and (self.fallTimer or 0xbeef) > (self.fallOff or 0xdead) then
+		if self.wasPersist then
 			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
-			if self.current_alarms[self.current].show_icon == nil or self.current_alarms[self.current].show_icon then 
+			if self.show_icon == nil or self.show_icon then 
 				UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
 			end
 		end
-		for i, v in ipairs(self.current_alarms) do
-			v.active = false
-		end
-		self.current_alarms[self.current].fallTimer = 0
-		table.remove(self.current_alarms, self.current)
-		self.obj:Print("Remove")
+		self.active = false
+		self.fallTimer = 0
 	end
-
 end
 
 function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
@@ -834,12 +832,12 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 			end
 
 			if alarmModes[v.mode] == L["Flash Background"] and eventtype == "SPELL_AURA_APPLIED" and stackTest then
-				self.AAFrame:SetBackdropColor(v.color[1], v.color[2], v.color[3], v.color[4])
+				self.AAFrame:SetBackdropColor(v.color.r, v.color.g, v.color.b, v.color.a)
 				UIFrameFlash(self.AAFrame, .3, .3, 1.6, false, 0, 1) 
 				UIFrameFlash(self.AAIconFrame, .3, .3, 3.6, false, 0, 3)
 			elseif alarmModes[v.mode] == L["Persist"] then
 				if eventtype == "SPELL_AURA_APPLIED" and stackTest then
-					self.AAFrame:SetBackdropColor(v.color[1], v.color[2], v.color[3], v.color[4])
+					self.AAFrame:SetBackdropColor(v.color.r, v.color.g, v.color.b, v.color.a)
 					UIFrameFadeIn(self.AAFrame, .3, 0, 1)
 					if v.show_icon then
 						UIFrameFadeIn(self.AAIconFrame, .3, 0, 1)
@@ -895,7 +893,7 @@ function AuraAlarm:AddAuraUnderMouse()
 			end
 		end
 		if isNotAlarm and buffName == scannedText then
-			self.db.profile.auras[#self.db.profile.auras+1] = {name=buffName, color={1,0,0}, duration=1, soundFile="None", flashBackground=true} 
+			self.db.profile.auras[#self.db.profile.auras+1] = {name=buffName, color={r=1,g=0,b=0,a=0}, duration=1, soundFile="None", flashBackground=true} 
 			self:BuildAurasOpts() 
 			self:Print(L["%s added to AuraAlarm."], buffName)
 			break
