@@ -780,17 +780,19 @@ function AuraAlarm:WatchForAura(elapsed)
 							r = (p.r * p.a + r * (255 - p.a)) / 255
 							g = (p.g * p.a + g * (255 - p.a)) / 255
 							b = (p.b * p.a + b * (255 - p.a)) / 255
+							self.obj:Print("blend" )
 						end
 					end
 				end
 			end
+			self.obj:Print("set backdrop " .. r .. " " .. g .. " " .. b)
 			self.obj.AAFrame:SetBackdropColor(r / 255, g / 255, b / 255, a / 255)
 			if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
 				UIFrameFadeIn(self.obj.AAFrame, .3, 0, 1)
-				--self.obj.AAFrame:SetAlpha(1)
+				self.obj.AAFrame:SetAlpha(1)
 				if v.showIcon == nil or v.showIcon then
---						self.obj.AAIconFrame:SetAlpha(1)
-					UIFrameFadeIn(self.obj.AAIconFrame, .3, 0, 1)
+					self.obj.AAIconFrame:SetAlpha(1)
+					--UIFrameFadeIn(self.obj.AAIconFrame, .3, 0, 1)
 				end
 				alarm.wasPersist = true
 			else
@@ -824,9 +826,11 @@ function AuraAlarm:WatchForAura(elapsed)
 			alarm.fallTimer = 0
 		end
 		if name == (v.name or "") and alarm.blinkTimer > (alarm.blinkRate or 1 + .6) and v.mode == table_find(alarmModes, L["Blink"]) and not first_time then
-			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
+			self.obj.AAFrame:SetAlpha(0)
+--			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
 			if v.showIcon == nil or v.showIcon then
-				UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
+				self.obj.AAFrame:SetAlpha(0)
+--				UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
 			end
 			if alarm.fallTimer > alarm.fallOff then
 				alarm.fallTimer = 0
