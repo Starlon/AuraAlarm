@@ -152,7 +152,7 @@ function AuraAlarm:BuildAurasOpts()
 					end,
 					set = function(info, r, g, b, a)
 						self.db.profile.auras[k].color.r, self.db.profile.auras[k].color.g, self.db.profile.auras[k].color.b, self.db.profile.auras[k].color.a = r * 255, g * 255, b * 255, a * 255
-						for k, v in pairs(self.AAWatchFrame.current_alarms) do
+						for k, v in pairs(self.AAWatchFrame.current_alarms or {}) do
 							v.active = false
 						end
 					end,
@@ -860,7 +860,7 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 				UIFrameFlash(self.AAIconFrame, .3, .3, 3.6, false, 0, 3)
 			elseif alarmModes[v.mode] == L["Persist"] then
 				if eventtype == "SPELL_AURA_APPLIED" and stackTest then
-					self.AAFrame:SetBackdropColor(v.color.r, v.color.g, v.color.b, v.color.a)
+					self.AAFrame:SetBackdropColor(v.color.r / 255, v.color.g / 255, v.color.b / 255, v.color.a / 255)
 					UIFrameFadeIn(self.AAFrame, .3, 0, 1)
 					if v.show_icon then
 						UIFrameFadeIn(self.AAIconFrame, .3, 0, 1)
