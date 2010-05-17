@@ -610,16 +610,44 @@ function AuraAlarm:OnDisable()
 	self:ChangeMode(1)
 end
 
+local function findByIndex(tbl, i)
+	if not tbl then return nil end
+
+	for k, v in pairs(tbl) do
+		if v.i == i then
+			return v.table
+		end
+	end
+	return nil
+end
+
 function AuraAlarm:WatchForAura(elapsed)
-	self.timer = (self.timer or 0) + elapsed
-	self.fallTimer = (self.fallTimer or 0) + elapsed
-	self.blinkTimer = (self.blinkTimer or 0) + elapsed
-	self.soundTimer = (self.soundTimer or 0) + elapsed
 
 	local show_icon
 	local name, icon, count, expirationTime, id, _
 
-	if not self.current_alarms then self.current_alarms = {} end
+	if not self.current_alarms then 
+		self.current_alarms = {}
+		for i, v in ipairs(self.obj.db.profile.auras) do
+
+			self.current_alarms[v] = {name=v.name, type=v.type, unit=v.unit or "player", mode=v.mode, blinkRate=v.blinkRate, show_icon=v.show_icon, active=false, table=v, i=i}
+		end
+	end
+
+	if self.current then
+		self.current = findByIndex(self.current_alarms, self.current_alarms[self.current].i + 1)
+	end
+
+	if not self.current then
+		self.current = findByIndex(self.current_alarms, 1) 
+	end
+
+	local alarm = self.current_alarms[self.current]
+
+	alarm.timer = (alarm.timer or 0) + elapsed / #self.current_alarms
+	alarm.fallTimer = (alarm.fallTimer or 0) + elapsed / #self.current_alarms
+	alarm.blinkTimer = (alarm.blinkTimer or 0) + elapsed / #self.current_alarms
+	alarm.soundTimer = (alarm.soundTimer or 0) + elapsed / #self.current_alarms
 
 	local units = {}
 
@@ -669,8 +697,9 @@ function AuraAlarm:WatchForAura(elapsed)
 		end
 	end
 
-	if self.timer > (self.obj.db.profile.determined_rate or 1) then
-		for k, v in pairs(self.obj.db.profile.auras) do
+	if self.current_alarms[self.current].timer > (self.obj.db.profile.determined_rate or 1) then
+		local i = alarm.i
+		local v = self.current
 
 			local aura
 			local at = auras[v.unit or "player"]
@@ -702,7 +731,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			end
 
 			local first_time = false
-			if name and name == v.name and not self.active and (isStacked and v.count == count or not isStacked) then
+			if name and name == v.name and not alarm.active and (isStacked and v.count == count or not isStacked) then
 				local r, g, b, a = 0, 0, 0, 0
 				
 				self.obj.AAFrame:SetBackdropColor(v.color.r / 255, v.color.g / 255, v.color.b / 255, v.color.a / 255)
@@ -711,82 +740,76 @@ function AuraAlarm:WatchForAura(elapsed)
 					if v.show_icon == nil or v.show_icon then
 						UIFrameFadeIn(self.obj.AAIconFrame, .3, 0, 1)
 					end
-					self.wasPersist = true
+					alarm.wasPersist = true
 				else
 					UIFrameFlash(self.obj.AAFrame, .3, .3, 1.6, false, 0, 1)
-					if v.show_icon == nil or v.show_icon then
+					if alarm.show_icon == nil or alarm.show_icon then
 						UIFrameFlash(self.obj.AAIconFrame, .3, .3, 3.6, false, 0, 3)
 					end
 				end
-				self.current_auras = {name=name, type=auraTypes[v.type or 1], unit=v.unit or "player", mode=v.mode, blinkRate=v.blinkRate}
-				self.show_icon = v.show_icon
-				self.active = true
+				alarm.show_icon = v.show_icon
+				alarm.active = true
 				first_time = true
-				self.blinkTimer = 0
+				alarm.blinkTimer = 0
 			end
 			if name and name == v.name  then
-				if (isStacked and count ~= self.lastCount) or (v.soundPersist and self.soundTimer > (v.soundRate or 2) and v.mode == PERSIST_MODE) or first_time then
+				if (isStacked and count ~= alarm.lastCount) or (v.soundPersist and alarm.soundTimer > (v.soundRate or 2) and v.mode == PERSIST_MODE) or first_time then
 					PlaySoundFile(LSM:Fetch("sound", soundFiles[getLSMIndexByName("sound", v.soundFile) or getLSMIndexByName("sound", "None")]))
-					if isStacked and count ~= self.lastCount then
-						self.lastCount = count
+					if isStacked and count ~= alarm.lastCount then
+						alarm.lastCount = count
 					end
-					self.soundTimer = 0
+					alarm.soundTimer = 0
 				end
 				self.obj.AAIconFrame.Icon:SetTexture(icon)
 				self.obj.AAIconFrame.Text:SetText(stackText)
-				self.fallOff = expirationTime - GetTime()
-				if self.fallOff < 0 then
-					self.fallOff = 0xdeadbeef
+				alarm.fallOff = expirationTime - GetTime()
+				if alarm.fallOff < 0 then
+					alarm.fallOff = 0xdeadbeef
 				end
-				self.fallTimer = 0
+				alarm.fallTimer = 0
 			end
-			if name == (v.name or "") and self.blinkTimer > (v.blinkRate or 1 + .6) and v.mode == table_find(alarmModes, L["Blink"]) and not first_time then
+			if name == (v.name or "") and alarm.blinkTimer > (v.blinkRate or 1 + .6) and v.mode == table_find(alarmModes, L["Blink"]) and not first_time then
 				UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
 				if v.show_icon == nil or v.show_icon then
 					UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
 				end
-				if self.fallTimer > self.fallOff then
-					self.fallTimer = 0
+				if alarm.fallTimer > alarm.fallOff then
+					alarm.fallTimer = 0
 				end	
-				self.firstSound = false
-				self.active = false
-				self.blinkTimer = 0
-				self.blinkRate = v.blinkRate
+				alarm.firstSound = false
+				alarm.active = false
+				alarm.blinkTimer = 0
+				alarm.blinkRate = v.blinkRate
 			end
-		end
-		this.timer = 0
+		alarm.timer = 0
 	end
 
 	local activeAura = false
-	if self.current_alarms and self.active then for i = 1, 40 do
-		if self.current_alarms.name then
-			name = nil
-			if self.current_alarms.type == "DEBUFF" then
-				name = UnitDebuff(self.current_alarms.unit or "player", i)
-			else
-				name = UnitBuff(self.current_alarms.unit or "player", i)
-			end
-			local aura = auras[self.current_alarms.unit or "player"]
+	if alarm and alarm.active then for i = 1, 40 do
+		if alarm.name then
+			local aura = auras[alarm.unit or "player"]
 
 			if aura then
-				aura = aura[typeNames[self.current_alarms.type]][name]
-				self.obj:Print("Test" .. aura)
+				aura = aura[typeNames[alarm.type or 1]][name]
 			end
-			if self.current_alarms.name == aura.name then
+
+			if aura and alarm.name == aura.name then
 				activeAura = true
 			end
 		end
 	end end
 
-	if self.active and (self.fallTimer or 0xbeef) > (self.fallOff or 0xdead) then
-		if self.wasPersist then
+	if alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead) then
+		if alarm.wasPersist then
 			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
-			if self.show_icon == nil or self.show_icon then 
+			if alarm.show_icon == nil or alarm.show_icon then 
 				UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
 			end
 		end
-		self.active = false
-		self.fallTimer = 0
+		for k, v in pairs(self.current_alarms) do
+			v.active = false
+		end
+		alarm.fallTimer = 0
 	end
 end
 
