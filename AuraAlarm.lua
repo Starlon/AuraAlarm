@@ -140,6 +140,17 @@ local opts = {
 				AuraAlarm.db.profile.determined_rate = tonumber(v) / 100
 			end,
 			pattern = "%d"
+		},
+		layers = {
+			name = L["Layers"],
+			type = "input",
+			get = function()
+				return tostring(AuraAlarm.db.profile.layers or 2)
+			end,
+			set = function(info, v)
+				AuraAlarm.db.profile.layers = tonumber(v)
+			end,
+			pattern = "%d"
 		}
 	}
 }
@@ -353,6 +364,18 @@ function AuraAlarm:BuildAurasOpts()
 					end,
 					order=12
 				},
+				layer = {
+					name = L["Layer"],
+					desc = L["This alarm's layer. There should be one alarm per layer."],
+					type = "input",
+					get = function()
+						return tostring(self.db.profile.auras[k].layer or 1)
+					end,
+					set = function(info, v)
+						self.db.profile.auras[k].layer = tonumber(v)
+					end,
+					pattern = "%d"
+				},	
 				remove = {
 					name = L["Remove"],
 					type = 'execute',
@@ -381,7 +404,7 @@ function AuraAlarm:BuildAurasOpts()
 				desc = L["Add a aura"],
 				usage = L["<New aura here>"],
 				set = function(info, v) 
-					self.db.profile.auras[#self.db.profile.auras+1] = {name=v, color={r=255,g=0,b=0,a=42}, soundFile="None", mode=1} 
+					self.db.profile.auras[#self.db.profile.auras+1] = {name=v, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1} 
 					self:BuildAurasOpts() 
 					self:Print(L["%s added."]:format(v)) 
 					self.AAWatchFrame.current_alarms = nil
@@ -637,7 +660,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		self.current_alarms = {}
 		for i, v in ipairs(self.obj.db.profile.auras) do
 
-			self.current_alarms[v] = {name=v.name, type=v.type, unit=v.unit or "player", mode=v.mode, blinkRate=v.blinkRate, show_icon=v.show_icon, active=false, table=v, i=i}
+			self.current_alarms[v] = {name=v.name, type=v.type, unit=v.unit or "player", mode=v.mode, blinkRate=v.blinkRate, show_icon=v.show_icon, active=false, table=v, i=i, layer=v.layer}
 		end
 	end
 
@@ -740,8 +763,39 @@ function AuraAlarm:WatchForAura(elapsed)
 			local first_time = false
 			if name and name == v.name and not alarm.active and (isStacked and v.count == count or not isStacked) then
 				local r, g, b, a = 0, 0, 0, 0
-				
-				self.obj.AAFrame:SetBackdropColor(v.color.r / 255, v.color.g / 255, v.color.b / 255, v.color.a / 255)
+
+				local o = self.obj.db.profile.layers or 2
+				local p
+
+				for l = 0, self.obj.db.profile.layers or 2 do
+					for k, v in pairs(self.current_alarms) do
+						if l == (v.layer or 1) then
+							if v.table.color.a == 255 then
+								o = l
+							end
+						end
+					end
+
+				end
+				for i = o, 1, -1 do
+					for k, v in pairs(self.current_alarms) do
+						if (v.active or k.name == name) and i == (k.layer or 1) then
+							p = k.color
+							if p.a == 255 then
+								r = p.r
+								g = p.g
+								b = p.b
+								a = 0.4 * 255
+							elseif p.a > 0 then
+								r = (p.r * p.a + r * (255 - p.a)) / 255
+								g = (p.g * p.a + g * (255 - p.a)) / 255
+								b = (p.b * p.a + b * (255 - p.a)) / 255
+								a = 0.4 * 255
+							end
+						end
+					end
+				end
+				self.obj.AAFrame:SetBackdropColor(r / 255, g / 255, b / 255, a / 255)
 				if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
 					UIFrameFadeIn(self.obj.AAFrame, .3, 0, 1)
 					if v.show_icon == nil or v.show_icon then
@@ -918,7 +972,7 @@ function AuraAlarm:AddAuraUnderMouse()
 			end
 		end
 		if isNotAlarm and buffName == scannedText then
-			self.db.profile.auras[#self.db.profile.auras+1] = {name=buffName, color={r=1,g=0,b=0,a=0}, duration=1, soundFile="None", flashBackground=true} 
+			self.db.profile.auras[#self.db.profile.auras+1] = {name=buffName, color={r=255,g=0,b=0,a=0.4 * 255}, duration=1, soundFile="None", flashBackground=true} 
 			self:BuildAurasOpts() 
 			self:Print(L["%s added to AuraAlarm."], buffName)
 			break

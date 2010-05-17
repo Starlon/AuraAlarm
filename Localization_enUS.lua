@@ -54,4 +54,7 @@ L["Persisting Sound"] = true
 L["Toggle repeating sound throughout aura. This only pertains to Persist Mode."] = true
 L["Sound Rate"] = true
 L["Rate at which Persisting Sound will fire. This is in milliseconds."] = true
+L["Layers"] = true
+L["Layer"] = true
+L["This alarm's layer. There should be one alarm per layer."] = true
 
