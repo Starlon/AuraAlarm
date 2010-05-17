@@ -101,6 +101,39 @@ local function cleanup(frame, elapsed)
 	end
 end
 
+local newFont, delFont
+do
+	local pool = setmetatable({},{__mode='k'})
+	newFont = function(frame)
+		if not frame or type(frame) ~= "table" then error("Argument passed is invalid, expected a table.") end
+		local t = next(pool) or frame:CreateFontString(nil, "LEFT")
+		t:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE, MONOCHROME")
+                t:SetFontObject(GameFontNormal)
+		pool[t] = nil
+	end
+
+	delFont = function(t)
+		if not t or type(t) ~= "table" then error("Argument passed is invalid, expected a table.") end
+		pool[t] = true
+	end
+end
+
+local newIcon, delIcon
+do
+	local pool = setmetatable({}, {__mode='k'})
+	newIcon = function(frame)
+		if not frame or type(frame) ~= "table" then error("Argument passed is invalid, expected a table.") end
+		local t = next(pool) or frame:CreateTexture(nil, "DIALOG")
+		t:SetHeight(24)
+		t:SetWidth(24)
+	end
+
+	delIcon = function(t)
+		if not t or type(t) ~= "table" then error("Argument passed is invalid, expected a table.") end
+		pool[t] = true
+	end
+end
+
 function AuraAlarm:BuildAurasOpts()
 	self.opts.args.auras.args = {}
 	for k,v in ipairs(self.db.profile.auras) do
@@ -223,7 +256,9 @@ function AuraAlarm:BuildAurasOpts()
 							self.opts.args.auras.args["Aura" .. tostring(k)].args.soundRate.disabled = true
 						end
 						self.db.profile.auras[k].mode = v
-						self.AAWatchFrame.active = false
+						for k, v in pairs(self.AAWatchFrame.current_alarms) do
+							v.active = false
+						end
 					end,
 					values = alarmModes,
 					order = 7
@@ -264,16 +299,16 @@ function AuraAlarm:BuildAurasOpts()
 					pattern = "%d",
 					order = 10
 				},
-				show_icon = {
+				showIcon = {
 					name = L["Show Icon"],
 					desc = L["Show icon frame"],
 					type = "toggle",
 					get = function()
-						local show_icon = self.db.profile.auras[k].show_icon
-						return show_icon == nil or show_icon == true
+						local showIcon = self.db.profile.auras[k].showIcon
+						return showIcon == nil or showIcon == true
 					end,
 					set = function(info, v)
-						self.db.profile.auras[k].show_icon = v
+						self.db.profile.auras[k].showIcon = v
 					end,
 					order=12
 				},
@@ -542,16 +577,13 @@ function AuraAlarm:OnInitialize()
 	self.AAIconFrame:SetBackdropColor(0, 1, 0, 1)
 	self.AAIconFrame:SetBackdropBorderColor(0, 0, 0, 1)
 
-	self.AAIconFrame.Text = self.AAIconFrame:CreateFontString("AAtext", "LEFT")
-	self.AAIconFrame.Text:SetPoint("LEFT", 34, 0)
-	self.AAIconFrame.Text:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE, MONOCHROME")
-	self.AAIconFrame.Text:SetFontObject(GameFontNormal)
+	self.AAIconFrame.icons = {}
+	self.AAIconFrame.texts = {}
+	for i, v in pairs(self.db.profile.auras) do
+		self.AAIconFrame.icons[v] = newIcon(self.AAIconFrame)
 
-	self.AAIconFrame.Icon = self.AAIconFrame:CreateTexture(nil,"DIALOG")
-	self.AAIconFrame.Icon:SetPoint("LEFT", 10, 0)
-	self.AAIconFrame.Icon:SetTexture(select(3, GetSpellInfo("Slam")))
-	self.AAIconFrame.Icon:SetHeight(24)
-	self.AAIconFrame.Icon:SetWidth(24)
+		self.AAIconFrame.texts[v] = newFont(self.AAIconFrame)
+	end
 
 	self.AAWatchFrame.obj = self
 	local mode = supportModes[self.db.profile.mode or 1]
@@ -597,16 +629,23 @@ local function findByIndex(tbl, i)
 end
 
 function AuraAlarm:WatchForAura(elapsed)
+	self.timer = (self.timer or 0) + elapsed
 
-	local show_icon
+	local showIcon
 	local name, icon, count, expirationTime, id, _
 
 	if not self.current_alarms then 
 		self.current_alarms = {}
 		for i, v in ipairs(self.obj.db.profile.auras) do
 
-			self.current_alarms[v] = {name=v.name, type=v.type, unit=v.unit or "player", mode=v.mode, blinkRate=v.blinkRate, show_icon=v.show_icon, active=false, table=v, i=i, layer=v.layer}
+			self.current_alarms[v] = {name=v.name, type=v.type, unit=v.unit or "player", mode=v.mode, blinkRate=v.blinkRate, showIcon=v.showIcon, active=false, table=v, i=i, layer=v.layer}
+			self.count = (self.count or 0) + 1
 		end
+	end
+
+	
+	if self.count == 0 then
+		return
 	end
 
 	if self.current then
@@ -619,10 +658,10 @@ function AuraAlarm:WatchForAura(elapsed)
 
 	local alarm = self.current_alarms[self.current]
 
-	alarm.timer = (alarm.timer or 0) + elapsed / #self.current_alarms
-	alarm.fallTimer = (alarm.fallTimer or 0) + elapsed / #self.current_alarms
-	alarm.blinkTimer = (alarm.blinkTimer or 0) + elapsed / #self.current_alarms
-	alarm.soundTimer = (alarm.soundTimer or 0) + elapsed / #self.current_alarms
+	alarm.timer = (alarm.timer or 0) + elapsed * self.count
+	alarm.fallTimer = (alarm.fallTimer or 0) + elapsed * self.count
+	alarm.blinkTimer = (alarm.blinkTimer or 0) + elapsed * self.count
+	alarm.soundTimer = (alarm.soundTimer or 0) + elapsed * self.count
 
 	local units = {}
 
@@ -696,14 +735,10 @@ function AuraAlarm:WatchForAura(elapsed)
 				stackText = tostring(count)
 			end
 
+			self.current_alarms[self.current].isStacked = isStacked
+
 			local stackTest = (isStacked and aura and aura.count == count) or not isStacked
 
-
-			if isStacked and name then
-				self.obj.AAIconFrame:SetWidth(80)
-			elseif name then
-				self.obj.AAIconFrame:SetWidth(44)
-			end
 
 			local first_time = false
 			if name and name == v.name and not alarm.active and (isStacked and v.count == count or not isStacked) then
@@ -742,17 +777,19 @@ function AuraAlarm:WatchForAura(elapsed)
 				self.obj.AAFrame:SetBackdropColor(r / 255, g / 255, b / 255, a / 255)
 				if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
 					UIFrameFadeIn(self.obj.AAFrame, .3, 0, 1)
-					if v.show_icon == nil or v.show_icon then
+					self.obj.AAFrame:SetAlpha(1)
+					if v.showIcon == nil or v.showIcon then
+--						self.obj.AAIconFrame:SetAlpha(1)
 						UIFrameFadeIn(self.obj.AAIconFrame, .3, 0, 1)
 					end
 					alarm.wasPersist = true
 				else
 					UIFrameFlash(self.obj.AAFrame, .3, .3, 1.6, false, 0, 1)
-					if alarm.show_icon == nil or alarm.show_icon then
+					if alarm.showIcon == nil or alarm.showIcon then
 						UIFrameFlash(self.obj.AAIconFrame, .3, .3, 3.6, false, 0, 3)
 					end
 				end
-				alarm.show_icon = v.show_icon
+				alarm.showIcon = v.showIcon
 				alarm.active = true
 				first_time = true
 				alarm.blinkTimer = 0
@@ -765,17 +802,24 @@ function AuraAlarm:WatchForAura(elapsed)
 					end
 					alarm.soundTimer = 0
 				end
-				self.obj.AAIconFrame.Icon:SetTexture(icon)
-				self.obj.AAIconFrame.Text:SetText(stackText)
+
+				if self.obj.AAIconFrame.icons[v] then
+					self.obj.AAIconFrame.icons[v]:SetTexture(icon)
+				end
+
+				if self.obj.AAIconFrame.texts[v] then
+					self.obj.AAIconFrame.texts[v]:SetText(stackText)
+				end
+
 				alarm.fallOff = expirationTime - GetTime()
 				if alarm.fallOff < 0 then
 					alarm.fallOff = 0xdeadbeef
 				end
 				alarm.fallTimer = 0
 			end
-			if name == (v.name or "") and alarm.blinkTimer > (v.blinkRate or 1 + .6) and v.mode == table_find(alarmModes, L["Blink"]) and not first_time then
+			if name == (v.name or "") and alarm.blinkTimer > (alarm.blinkRate or 1 + .6) and v.mode == table_find(alarmModes, L["Blink"]) and not first_time then
 				UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
-				if v.show_icon == nil or v.show_icon then
+				if v.showIcon == nil or v.showIcon then
 					UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
 				end
 				if alarm.fallTimer > alarm.fallOff then
@@ -786,6 +830,16 @@ function AuraAlarm:WatchForAura(elapsed)
 				alarm.blinkTimer = 0
 				alarm.blinkRate = v.blinkRate
 			end
+			
+		local pos = 0
+		for k, v in pairs(self.current_alarms) do
+			if v.showIcon and v.active then
+				self.icons[k]:SetPoint("LEFT", pos * 10, 0) 
+				self.texts[k]:SetPoint("LEFT", pos * 34, 0)
+				pos = pos + 1
+			end
+		end
+		self.obj.AAIconFrame:SetWidth( pos * (34 + 10 + 5 * pos))
 		alarm.timer = 0
 	end
 
@@ -807,7 +861,7 @@ function AuraAlarm:WatchForAura(elapsed)
 	if alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead) then
 		if alarm.wasPersist then
 			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
-			if alarm.show_icon == nil or alarm.show_icon then 
+			if alarm.showIcon == nil or alarm.showIcon then 
 				UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
 			end
 		end
@@ -846,7 +900,7 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 
 			local stackTest = (isStacked and aura.count == count) or isStacked == false
 
-			self.AAIconFrame.Text:SetText(stackText)
+			self.AAIconFrame.texts[v]:SetText(stackText)
 
 			if isStacked then
 				self.AAIconFrame:SetWidth(80)
@@ -862,14 +916,14 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 				if eventtype == "SPELL_AURA_APPLIED" and stackTest then
 					self.AAFrame:SetBackdropColor(v.color.r / 255, v.color.g / 255, v.color.b / 255, v.color.a / 255)
 					UIFrameFadeIn(self.AAFrame, .3, 0, 1)
-					if v.show_icon then
+					if v.showIcon then
 						UIFrameFadeIn(self.AAIconFrame, .3, 0, 1)
 					end
 					self.AAFrame:SetScript("OnUpdate", cleanup) -- all alarms have a hard timeout of 5 minutes before hiding the background frame
 					self.AAIconFrame:SetScript("OnUpdate", cleanup) -- this is because sometimes the combat log stops working
 				elseif stackTest then
 					UIFrameFadeOut(self.AAFrame, .3, 1, 0)
-					if v.show_icon then
+					if v.showIcon then
 						UIFrameFadeOut(self.AAIconFrame, .3, 1, 0)
 					end
 				end
@@ -878,7 +932,7 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 				if v.playSound then
 					PlaySoundFile(LSM:Fetch("sound", soundFiles[v.soundFile and getLSMIndexByName("sound", v.soundFile or "None") or 1]))
 				end
-				self.AAIconFrame.Icon:SetTexture(select(3, UnitAura(aura.unit or "player", aura_name, "", "HARMFUL")))
+				self.AAIconFrame.icons[v]:SetTexture(select(3, UnitAura(aura.unit or "player", aura_name, "", "HARMFUL")))
 			end
 			return
 		end
