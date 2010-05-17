@@ -780,12 +780,10 @@ function AuraAlarm:WatchForAura(elapsed)
 							r = (p.r * p.a + r * (255 - p.a)) / 255
 							g = (p.g * p.a + g * (255 - p.a)) / 255
 							b = (p.b * p.a + b * (255 - p.a)) / 255
-							self.obj:Print("blend" )
 						end
 					end
 				end
 			end
-			self.obj:Print("set backdrop " .. r .. " " .. g .. " " .. b)
 			self.obj.AAFrame:SetBackdropColor(r / 255, g / 255, b / 255, a / 255)
 			if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
 				--UIFrameFadeIn(self.obj.AAFrame, .3, 0, 1)
@@ -880,7 +878,6 @@ function AuraAlarm:WatchForAura(elapsed)
 	end
 
 	if alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead) or not activeAura then
-		self.obj:Print("fall off")
 		if alarm.wasPersist then
 			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
 			if alarm.showIcon == nil or alarm.showIcon then 
