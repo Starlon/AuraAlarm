@@ -56,5 +56,8 @@ L["Sound Rate"] = true
 L["Rate at which Persisting Sound will fire. This is in milliseconds."] = true
 L["Layers"] = true
 L["Layer"] = true
-L["This alarm's layer. There should be one alarm per layer."] = true
+L["This alarm's layer."] = true
+L["How many screen layers. Each alarm can be assigned to any given layer within this many layers."] = true
+L["Color key"] = true
+L["Usually a black color with no opacity."] = true
 

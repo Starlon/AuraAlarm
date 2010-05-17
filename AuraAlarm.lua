@@ -65,96 +65,6 @@ local hideIcon = function(self, elapsed)
 	end
 end
 
-local opts = { 
-	type = 'group',
-	args = {
-		auras = {
-			name = "Auras", 
-			type = 'group',
-			desc = L["Add and remove auras"],
-			args = {},
-			order = 1
-		},
-		x = {
-			name = "X",
-			desc = L["Frame x position"],
-			type = "range",
-			get = function()
-				return AuraAlarm.db.profile.x
-			end,
-			set = function(info, v)
-				AuraAlarm.db.profile.x = v
-				AuraAlarm.AAIconFrame:ClearAllPoints()
-				AuraAlarm.AAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
-				AuraAlarm.AAIconFrame:SetAlpha(1)
-				AuraAlarm.AAIconFrame:SetScript("OnUpdate", hideIcon)
-				AuraAlarm.AAIconFrame.timer = 0
-			end,
-			min = -math.floor(GetScreenWidth()/2 + 0.5),
-			max = math.floor(GetScreenWidth()/2 + 0.5),
-			step = 1,
-			order = 2
-		},
-		y = {
-			name = "Y",
-			desc = L["Frame y position"],
-			type = "range",
-			get = function()
-				return AuraAlarm.db.profile.y
-			end,
-			set = function(info, v)
-				AuraAlarm.db.profile.y = v
-				AuraAlarm.AAIconFrame:ClearAllPoints()
-				AuraAlarm.AAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
-				AuraAlarm.AAIconFrame:SetAlpha(1)
-				AuraAlarm.AAIconFrame:SetScript("OnUpdate", hideIcon)
-				AuraAlarm.AAIconFrame.timer = 0
-
-			end,
-			min = -math.floor(GetScreenHeight()/2 + 0.5),
-			max = math.floor(GetScreenHeight()/2 + 0.5),
-			step = 1,
-			order = 3
-		},
-		mode = {
-			name = L["Support Mode"],
-			desc = L["Use 'Determined' for events that don't show up in the combat log."],
-			type = "select",
-			values = supportModes,
-			get = function()
-				return AuraAlarm.db.profile.mode or 1
-			end,
-			set  = function(info, v)
-				AuraAlarm.db.profile.mode = v
-				AuraAlarm:ChangeMode(v)
-			end,
-			order = 4
-		},
-		determined_rate = {
-			name = L["Determined Mode Rate (in ms)"],
-			type = "input",
-			get = function()
-				return tostring((AuraAlarm.db.profile.determined_rate or 1) * 100)
-			end,
-			set = function(info, v) 
-				AuraAlarm.db.profile.determined_rate = tonumber(v) / 100
-			end,
-			pattern = "%d"
-		},
-		layers = {
-			name = L["Layers"],
-			type = "input",
-			get = function()
-				return tostring(AuraAlarm.db.profile.layers or 2)
-			end,
-			set = function(info, v)
-				AuraAlarm.db.profile.layers = tonumber(v)
-			end,
-			pattern = "%d"
-		}
-	}
-}
-
 local function count(tbl)
 	local count = 0
 	for k in pairs(tbl) do
@@ -242,6 +152,9 @@ function AuraAlarm:BuildAurasOpts()
 					end,
 					set = function(info, r, g, b, a)
 						self.db.profile.auras[k].color.r, self.db.profile.auras[k].color.g, self.db.profile.auras[k].color.b, self.db.profile.auras[k].color.a = r * 255, g * 255, b * 255, a * 255
+						for k, v in pairs(self.AAWatchFrame.current_alarms) do
+							v.active = false
+						end
 					end,
 					hasAlpha = true,
 					order = 3
@@ -366,7 +279,7 @@ function AuraAlarm:BuildAurasOpts()
 				},
 				layer = {
 					name = L["Layer"],
-					desc = L["This alarm's layer. There should be one alarm per layer."],
+					desc = L["This alarm's layer."],
 					type = "input",
 					get = function()
 						return tostring(self.db.profile.auras[k].layer or 1)
@@ -481,15 +394,15 @@ function AuraAlarm:OnInitialize()
 				desc = L["Frame x position"],
 				type = "range",
 				get = function()
-					return AuraAlarm.db.profile.x
+					return self.db.profile.x
 				end,
 				set = function(info, v)
-					AuraAlarm.db.profile.x = v
-					AuraAlarm.AAIconFrame:ClearAllPoints()
-					AuraAlarm.AAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
-					AuraAlarm.AAIconFrame:SetAlpha(1)
-					AuraAlarm.AAIconFrame:SetScript("OnUpdate", hideIcon)
-					AuraAlarm.AAIconFrame.timer = 0
+					self.db.profile.x = v
+					self.AAIconFrame:ClearAllPoints()
+					self.AAIconFrame:SetPoint("CENTER", self.db.profile.x, self.db.profile.y)
+					self.AAIconFrame:SetAlpha(1)
+					self.AAIconFrame:SetScript("OnUpdate", hideIcon)
+					self.AAIconFrame.timer = 0
 				end,
 				min = -math.floor(GetScreenWidth()/2 + 0.5),
 				max = math.floor(GetScreenWidth()/2 + 0.5),
@@ -501,16 +414,16 @@ function AuraAlarm:OnInitialize()
 				desc = L["Frame y position"],
 				type = "range",
 				get = function()
-					return AuraAlarm.db.profile.y
+					return self.db.profile.y
 				end,
 				set = function(info, v)
-					AuraAlarm.db.profile.y = v
-					AuraAlarm.AAIconFrame:ClearAllPoints()
-					AuraAlarm.AAIconFrame:SetPoint("CENTER", AuraAlarm.db.profile.x, AuraAlarm.db.profile.y)
-					AuraAlarm.AAIconFrame:SetAlpha(1)
-					AuraAlarm.AAIconFrame:SetScript("OnUpdate", hideIcon)
-					AuraAlarm.AAIconFrame.timer = 0
-	
+					self.db.profile.y = v
+					self.AAIconFrame:ClearAllPoints()
+					self.AAIconFrame:SetPoint("CENTER", self.db.profile.x, self.db.profile.y)
+					self.AAIconFrame:SetAlpha(1)
+					self.AAIconFrame:SetScript("OnUpdate", hideIcon)
+					self.AAIconFrame.timer = 0
+
 				end,
 				min = -math.floor(GetScreenHeight()/2 + 0.5),
 				max = math.floor(GetScreenHeight()/2 + 0.5),
@@ -523,11 +436,11 @@ function AuraAlarm:OnInitialize()
 				type = "select",
 				values = supportModes,
 				get = function()
-					return AuraAlarm.db.profile.mode or 1
+					return self.db.profile.mode or 1
 				end,
 				set  = function(info, v)
-					AuraAlarm.db.profile.mode = v
-					AuraAlarm:ChangeMode(v)
+					self.db.profile.mode = v
+					self:ChangeMode(v)
 				end,
 				order = 4
 			},
@@ -535,15 +448,47 @@ function AuraAlarm:OnInitialize()
 				name = L["Determined Mode Rate (in ms)"],
 				type = "input",
 				get = function()
-					return tostring((AuraAlarm.db.profile.determined_rate or 1) * 100)
+					return tostring((self.db.profile.determined_rate or 1) * 100)
 				end,
 				set = function(info, v) 
-					AuraAlarm.db.profile.determined_rate = tonumber(v) / 100
+					self.db.profile.determined_rate = tonumber(v) / 100
 				end,
-				pattern = "%d"
+				pattern = "%d",
+				order = 4
+			},
+			layers = {
+				name = L["Layers"],
+				desc = L["How many screen layers. Each alarm can be assigned to any given layer within this many layers."],
+				type = "input",
+				get = function()
+					return tostring(self.db.profile.layers or 2)
+				end,
+				set = function(info, v)
+					self.db.profile.layers = tonumber(v)
+				end,
+				pattern = "%d",
+				order = 5
+			},
+			alpha = {
+				name = L["Color key"],
+				desc = L["Usually a black color with no opacity."],
+				type = 'color',
+				get = function()
+					local c = self.db.profile.alpha
+					return c.r / 255, c.g / 255, c.b / 255, c.a / 255
+				end,
+				set = function(info, r, g, b, a)
+					local c = self.db.profile.alpha
+					c.r, c.g, c.b, c.a = r * 255, g * 255, b * 255, a * 255
+					for k, v in pairs(self.AAWatchFrame.current_alarms) do
+						v.active = false
+					end
+				end,
+				hasAlpha = true
 			}
 		}
 	}
+
 
 	self.opts = opts
 
@@ -555,10 +500,10 @@ function AuraAlarm:OnInitialize()
 	
 	self.db:RegisterDefaults({
 		profile = {
-		    auras = {},
-		    x = 0,
-		    y = 0,
-		    mouse = true
+			auras = {},
+			x = 0,
+			y = 0,
+			alpha = {r = 0, g = 0, b = 0, a = 0.4 * 255}
 		}
 	})
 	
@@ -762,7 +707,8 @@ function AuraAlarm:WatchForAura(elapsed)
 
 			local first_time = false
 			if name and name == v.name and not alarm.active and (isStacked and v.count == count or not isStacked) then
-				local r, g, b, a = 0, 0, 0, 0
+				local c = self.obj.db.profile.alpha
+				local r, g, b, a = c.r, c.g, c.b, c.a
 
 				local o = self.obj.db.profile.layers or 2
 				local p
@@ -785,12 +731,10 @@ function AuraAlarm:WatchForAura(elapsed)
 								r = p.r
 								g = p.g
 								b = p.b
-								a = 0.4 * 255
 							elseif p.a > 0 then
 								r = (p.r * p.a + r * (255 - p.a)) / 255
 								g = (p.g * p.a + g * (255 - p.a)) / 255
 								b = (p.b * p.a + b * (255 - p.a)) / 255
-								a = 0.4 * 255
 							end
 						end
 					end
