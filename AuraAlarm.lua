@@ -361,6 +361,8 @@ function AuraAlarm:BuildAurasOpts()
 						table.remove(self.db.profile.auras, k) 
 						self:BuildAurasOpts() 
 						self:Print(L["Aura removed."]) 
+						self.AAWatchFrame.current_alarms = nil
+						self.AAWatchFrame.current = nil
 					end,
 					order=100
 				},				
@@ -382,6 +384,8 @@ function AuraAlarm:BuildAurasOpts()
 					self.db.profile.auras[#self.db.profile.auras+1] = {name=v, color={r=255,g=0,b=0,a=42}, soundFile="None", mode=1} 
 					self:BuildAurasOpts() 
 					self:Print(L["%s added."]:format(v)) 
+					self.AAWatchFrame.current_alarms = nil
+					self.AAWatchFrame.current = nil
 				end,
 				get = function() end,
 				order=1
@@ -421,6 +425,8 @@ function AuraAlarm:BuildAurasOpts()
 				self.captured_auras[k] = nil
 				self:BuildAurasOpts()
 				self:Print(L["%s added."]:format(k))
+				self.AAWatchFrame.current_alarms = nil
+				self.AAWatchFrame.current = nil
 			end,
 			order = v == "DEBUFF" and low or hi
 		}
@@ -430,6 +436,7 @@ function AuraAlarm:BuildAurasOpts()
 			hi = hi + 1
 		end
 	end
+
 end
 
 function AuraAlarm:OnInitialize()	
