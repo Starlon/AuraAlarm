@@ -110,6 +110,7 @@ do
 		t:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE, MONOCHROME")
                 t:SetFontObject(GameFontNormal)
 		pool[t] = nil
+		return t
 	end
 
 	delFont = function(t)
@@ -126,6 +127,8 @@ do
 		local t = next(pool) or frame:CreateTexture(nil, "DIALOG")
 		t:SetHeight(24)
 		t:SetWidth(24)
+		pool[t] = nil
+		return t
 	end
 
 	delIcon = function(t)
@@ -590,8 +593,6 @@ function AuraAlarm:OnInitialize()
 	if self.db.profile.mode ~= NORML_MODE  then -- Determined
 		self.AAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
 	end
-
-	self.AAWatchFrame.active = false
 	
 end
 
@@ -715,160 +716,173 @@ function AuraAlarm:WatchForAura(elapsed)
 		local i = alarm.i
 		local v = self.current
 
-			local aura
-			local at = auras[v.unit or "player"]
+		local aura
+		local at = auras[v.unit or "player"]
 
-			if at and at[typeNames[v.type or 1] ] then
-				aura = at[typeNames[v.type or 1] ][v.name]
-			end
+		if at and at[typeNames[v.type or 1] ] then
+			aura = at[typeNames[v.type or 1] ][v.name]
+		end
 
-			if aura then
-				name, icon, count, expirationTime, id = aura.name, aura.icon, aura.count, aura.expirationTime, aura.id
-			end
+		if aura then
+			name, icon, count, expirationTime, id = aura.name, aura.icon, aura.count, aura.expirationTime, aura.id
+		end
 
-			local isStacked = true
-			local stackText = ""
+		local isStacked = true
+		local stackText = ""
 
-			if count == 0 or count == nil then
-				isStacked = false
-			else
-				stackText = tostring(count)
-			end
+		if count == 0 or count == nil then
+			isStacked = false
+		else
+			stackText = tostring(count)
+		end
 
-			self.current_alarms[self.current].isStacked = isStacked
+		self.current_alarms[self.current].isStacked = isStacked
 
-			local stackTest = (isStacked and aura and aura.count == count) or not isStacked
+		local stackTest = (isStacked and aura and aura.count == count) or not isStacked
 
 
-			local first_time = false
-			if name and name == v.name and not alarm.active and (isStacked and v.count == count or not isStacked) then
-				local c = self.obj.db.profile.alpha
-				local r, g, b, a = c.r, c.g, c.b, c.a
+		local first_time = false
+		if name and name == v.name and not alarm.active and (isStacked and v.count == count or not isStacked) then
+			local c = self.obj.db.profile.alpha
+			local r, g, b, a = c.r, c.g, c.b, c.a
 
-				local o = self.obj.db.profile.layers or 2
-				local p
+			local o = self.obj.db.profile.layers or 2
+			local p
 
-				for l = 0, self.obj.db.profile.layers or 2 do
-					for k, v in pairs(self.current_alarms) do
-						if l == (v.layer or 1) then
-							if v.table.color.a == 255 then
-								o = l
-							end
-						end
-					end
-
-				end
-				for i = o, 1, -1 do
-					for k, v in pairs(self.current_alarms) do
-						if (v.active or k.name == name) and i == (k.layer or 1) then
-							p = k.color
-							if p.a == 255 then
-								r = p.r
-								g = p.g
-								b = p.b
-							elseif p.a > 0 then
-								r = (p.r * p.a + r * (255 - p.a)) / 255
-								g = (p.g * p.a + g * (255 - p.a)) / 255
-								b = (p.b * p.a + b * (255 - p.a)) / 255
-							end
+			for l = 0, self.obj.db.profile.layers or 2 do
+				for k, v in pairs(self.current_alarms) do
+					if l == (v.layer or 1) then
+						if v.table.color.a == 255 then
+							o = l
 						end
 					end
 				end
-				self.obj.AAFrame:SetBackdropColor(r / 255, g / 255, b / 255, a / 255)
-				if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
-					UIFrameFadeIn(self.obj.AAFrame, .3, 0, 1)
-					self.obj.AAFrame:SetAlpha(1)
-					if v.showIcon == nil or v.showIcon then
---						self.obj.AAIconFrame:SetAlpha(1)
-						UIFrameFadeIn(self.obj.AAIconFrame, .3, 0, 1)
-					end
-					alarm.wasPersist = true
-				else
-					UIFrameFlash(self.obj.AAFrame, .3, .3, 1.6, false, 0, 1)
-					if alarm.showIcon == nil or alarm.showIcon then
-						UIFrameFlash(self.obj.AAIconFrame, .3, .3, 3.6, false, 0, 3)
-					end
-				end
-				alarm.showIcon = v.showIcon
-				alarm.active = true
-				first_time = true
-				alarm.blinkTimer = 0
+
 			end
-			if name and name == v.name  then
-				if (isStacked and count ~= alarm.lastCount) or (v.soundPersist and alarm.soundTimer > (v.soundRate or 2) and v.mode == PERSIST_MODE) or first_time then
-					PlaySoundFile(LSM:Fetch("sound", soundFiles[getLSMIndexByName("sound", v.soundFile) or getLSMIndexByName("sound", "None")]))
-					if isStacked and count ~= alarm.lastCount then
-						alarm.lastCount = count
+			for i = o, 1, -1 do
+				for k, v in pairs(self.current_alarms) do
+					if (v.active or k.name == name) and i == (k.layer or 1) then
+						p = k.color
+						if p.a == 255 then
+							r = p.r
+							g = p.g
+							b = p.b
+						elseif p.a > 0 then
+							r = (p.r * p.a + r * (255 - p.a)) / 255
+							g = (p.g * p.a + g * (255 - p.a)) / 255
+							b = (p.b * p.a + b * (255 - p.a)) / 255
+						end
 					end
-					alarm.soundTimer = 0
 				end
-
-				if self.obj.AAIconFrame.icons[v] then
-					self.obj.AAIconFrame.icons[v]:SetTexture(icon)
-				end
-
-				if self.obj.AAIconFrame.texts[v] then
-					self.obj.AAIconFrame.texts[v]:SetText(stackText)
-				end
-
-				alarm.fallOff = expirationTime - GetTime()
-				if alarm.fallOff < 0 then
-					alarm.fallOff = 0xdeadbeef
-				end
-				alarm.fallTimer = 0
 			end
-			if name == (v.name or "") and alarm.blinkTimer > (alarm.blinkRate or 1 + .6) and v.mode == table_find(alarmModes, L["Blink"]) and not first_time then
-				UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
+			self.obj.AAFrame:SetBackdropColor(r / 255, g / 255, b / 255, a / 255)
+			if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
+				UIFrameFadeIn(self.obj.AAFrame, .3, 0, 1)
+				self.obj.AAFrame:SetAlpha(1)
 				if v.showIcon == nil or v.showIcon then
-					UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
+--						self.obj.AAIconFrame:SetAlpha(1)
+					UIFrameFadeIn(self.obj.AAIconFrame, .3, 0, 1)
 				end
-				if alarm.fallTimer > alarm.fallOff then
-					alarm.fallTimer = 0
-				end	
-				alarm.firstSound = false
-				alarm.active = false
-				alarm.blinkTimer = 0
-				alarm.blinkRate = v.blinkRate
+				alarm.wasPersist = true
+			else
+				UIFrameFlash(self.obj.AAFrame, .3, .3, 1.6, false, 0, 1)
+				if alarm.showIcon == nil or alarm.showIcon then
+					UIFrameFlash(self.obj.AAIconFrame, .3, .3, 3.6, false, 0, 3)
+				end
 			end
+			alarm.showIcon = v.showIcon == nil or v.showIcon
+			alarm.active = true
+			first_time = true
+			alarm.blinkTimer = 0
+		end
+		if name and name == v.name  then
+			if (isStacked and count ~= alarm.lastCount) or (v.soundPersist and alarm.soundTimer > (v.soundRate or 2) and v.mode == PERSIST_MODE) or first_time then
+				PlaySoundFile(LSM:Fetch("sound", soundFiles[getLSMIndexByName("sound", v.soundFile) or getLSMIndexByName("sound", "None")]))
+				if isStacked and count ~= alarm.lastCount then
+					alarm.lastCount = count
+				end
+				alarm.soundTimer = 0
+			end
+
+			self.obj.AAIconFrame.icons[v]:SetTexture(icon)
+			self.obj.AAIconFrame.icons[v]:Show()
+
+			self.obj.AAIconFrame.texts[v]:SetText(stackText)
+
+			alarm.fallOff = expirationTime - GetTime()
+			if alarm.fallOff < 0 then
+				alarm.fallOff = 0xdeadbeef
+			end
+			alarm.fallTimer = 0
+		end
+		if name == (v.name or "") and alarm.blinkTimer > (alarm.blinkRate or 1 + .6) and v.mode == table_find(alarmModes, L["Blink"]) and not first_time then
+			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
+			if v.showIcon == nil or v.showIcon then
+				UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
+				delIcon(self.obj.AAIconFrame.icons[self.current])
+			end
+			if alarm.fallTimer > alarm.fallOff then
+				alarm.fallTimer = 0
+			end	
+			alarm.firstSound = false
+			alarm.active = false
+			alarm.blinkTimer = 0
+			alarm.blinkRate = v.blinkRate
+		end
 			
 		local pos = 0
+		local count = 0
 		for k, v in pairs(self.current_alarms) do
+			self.obj.AAIconFrame.icons[k]:ClearAllPoints()
+			self.obj.AAIconFrame.texts[k]:ClearAllPoints()
 			if v.showIcon and v.active then
-				self.icons[k]:SetPoint("LEFT", pos * 10, 0) 
-				self.texts[k]:SetPoint("LEFT", pos * 34, 0)
+				local x = pos * 44
+				
+				self.obj.AAIconFrame.icons[k]:SetPoint("LEFT", x + 10, 0) 
+				self.obj.AAIconFrame.texts[k]:SetPoint("LEFT", x + 36, 0)
 				pos = pos + 1
+			elseif v.showIcon and not v.active then
+				self.obj.AAIconFrame.icons[k]:SetTexture(nil)
+				self.obj.AAIconFrame.texts[k]:SetText("")
 			end
+			count = v.isStacked and count + 1 or count
 		end
-		self.obj.AAIconFrame:SetWidth( pos * (34 + 10 + 5 * pos))
+		self.obj.AAIconFrame:SetWidth( pos * 44 + 24)
 		alarm.timer = 0
 	end
 
 	local activeAura = false
-	if alarm and alarm.active then for i = 1, 40 do
-		if alarm.name then
-			local aura = auras[alarm.unit or "player"]
+			local aura = auras[self.current.unit or "player"]
 
 			if aura then
-				aura = aura[typeNames[alarm.type or 1]][name]
+				aura = aura[typeNames[self.current.type or 1]][alarm.name]
 			end
 
 			if aura and alarm.name == aura.name then
 				activeAura = true
 			end
-		end
-	end end
 
-	if alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead) then
+	if (alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead)) or not activeAura then
 		if alarm.wasPersist then
 			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
 			if alarm.showIcon == nil or alarm.showIcon then 
+				delIcon(self.obj.AAIconFrame.icons[self.current])
 				UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
 			end
 		end
-		for k, v in pairs(self.current_alarms) do
-			v.active = false
-		end
+		alarm.active = false
 		alarm.fallTimer = 0
+	end
+
+	local totalActive = 0
+	for k, v in pairs(self.current_alarms) do
+		if v.active then
+			totalActive = totalActive + 1
+		end
+	end
+	if totalActive == 0 then
+		self.obj.AAIconFrame:SetAlpha(0)
+		self.obj.AAFrame:SetAlpha(0)
 	end
 end
 
