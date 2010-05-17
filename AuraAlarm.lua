@@ -857,17 +857,22 @@ function AuraAlarm:WatchForAura(elapsed)
 	end
 
 	local activeAura = false
-			local aura = auras[self.current.unit or "player"]
+	local aura = auras[self.current.unit or "player"]
 
-			if aura then
-				aura = aura[typeNames[self.current.type or 1]][alarm.name]
-			end
+	if aura then
+		aura = aura[typeNames[self.current.type or 1]][alarm.name]
+	end
 
-			if aura and alarm.name == aura.name then
-				activeAura = true
-			end
+	if aura then
+		activeAura = true
+	end
 
-	if (alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead)) then
+	if not alarm.active then 
+		activeAura = true 
+	end
+
+	if alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead) or not activeAura then
+		self.obj:Print("fall off")
 		if alarm.wasPersist then
 			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
 			if alarm.showIcon == nil or alarm.showIcon then 
@@ -877,6 +882,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		for k, v in pairs(self.current_alarms) do
 			v.active = false
 		end
+		alarm.active = false
 		alarm.fallTimer = 0
 	end
 
