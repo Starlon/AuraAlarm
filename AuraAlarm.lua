@@ -788,7 +788,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			self.obj:Print("set backdrop " .. r .. " " .. g .. " " .. b)
 			self.obj.AAFrame:SetBackdropColor(r / 255, g / 255, b / 255, a / 255)
 			if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
-				UIFrameFadeIn(self.obj.AAFrame, .3, 0, 1)
+				--UIFrameFadeIn(self.obj.AAFrame, .3, 0, 1)
 				self.obj.AAFrame:SetAlpha(1)
 				if v.showIcon == nil or v.showIcon then
 					self.obj.AAIconFrame:SetAlpha(1)
@@ -797,8 +797,10 @@ function AuraAlarm:WatchForAura(elapsed)
 				alarm.wasPersist = true
 			else
 				UIFrameFlash(self.obj.AAFrame, .3, .3, 1.6, false, 0, 1)
+				--self.obj.AAFrame:SetAlpha(1)
 				if alarm.showIcon == nil or alarm.showIcon then
 					UIFrameFlash(self.obj.AAIconFrame, .3, .3, 3.6, false, 0, 3)
+					--self.obj.AAIconFrame:SetAlpha(1)
 				end
 			end
 			alarm.showIcon = v.showIcon == nil or v.showIcon
@@ -836,9 +838,11 @@ function AuraAlarm:WatchForAura(elapsed)
 				alarm.fallTimer = 0
 			end	
 			alarm.firstSound = false
-			alarm.active = false
-			alarm.blinkTimer = 0
-			alarm.blinkRate = v.blinkRate
+--			if v.mode == table_find(alarmModes, L["Blink"]) then
+				alarm.active = false
+				alarm.blinkTimer = 0
+				alarm.blinkRate = v.blinkRate
+--			end
 		end
 			
 		local pos = 0
@@ -886,7 +890,6 @@ function AuraAlarm:WatchForAura(elapsed)
 		for k, v in pairs(self.current_alarms) do
 			v.active = false
 		end
-		alarm.active = false
 		alarm.fallTimer = 0
 	end
 
