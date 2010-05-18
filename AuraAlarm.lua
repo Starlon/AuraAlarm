@@ -652,7 +652,6 @@ local function endNormalAlarm(frame, elapsed)
 			end
 		end
 		blinkFrame:SetScript("OnUpdate", nil)	
-		AuraAlarm:Print("normal blink ended")
 	end
 end
 
@@ -782,7 +781,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		local stackTest = (isStacked and aura and aura.count == count) or not isStacked
 
 		local first_time = false
-		if name and name == v.name and not alarm.active and (isStacked and v.count == count or not isStacked) then
+		if name and name == v.name and not alarm.active and not alarm.justResting and (isStacked and v.count == count or not isStacked) then
 			local c = self.obj.db.profile.alpha
 			local r, g, b, a = c.r, c.g, c.b, c.a
 
@@ -799,7 +798,6 @@ function AuraAlarm:WatchForAura(elapsed)
 				end
 
 			end
-			self.obj:Print("---------- " .. o)
 			for i = o, 1, -1 do
 				for k, v in pairs(self.currentAlarms) do
 					if (v.active or k.name == name) and i == (k.layer or 1) then
@@ -813,14 +811,11 @@ function AuraAlarm:WatchForAura(elapsed)
 							g = (p.g * p.a + round(g) * (255 - p.a)) / 255
 							b = (p.b * p.a + round(b) * (255 - p.a)) / 255
 						end
-						self.obj:Print("r " .. r .. ", g " .. g .. ", b " .. b .. ", a " .. a)
 					end
 				end
 			end
 			self.obj.AAFrame:SetBackdropColor(round(r) / 255, round(g) / 255, round(b) / 255, round(a) / 255)
 
-			self.obj:Print("Color changed")
-			self.obj:Print("r " .. r / 255 .. ", g " .. g / 255 .. ", b " .. b / 255 .. ", a " .. a / 255)
 			if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
 				--UIFrameFadeIn(self.obj.AAFrame, .3, 0, 1)
 				self.obj.AAFrame:SetAlpha(1)
@@ -831,7 +826,6 @@ function AuraAlarm:WatchForAura(elapsed)
 					--UIFrameFadeIn(self.obj.AAIconFrame, .3, 0, 1)
 				end
 				alarm.wasPersist = true
-				self.obj:Print("Is persist.. light up")
 			else
 				UIFrameFlash(self.obj.AAFrame, .3, .3, 1.6, false, 0, 1)
 				--self.obj.AAFrame:SetAlpha(1)
@@ -844,12 +838,12 @@ function AuraAlarm:WatchForAura(elapsed)
 				blinkFrame.normalAlarm = v
 				blinkFrame.blinkRate = 3.6
 				blinkFrame:SetScript("OnUpdate", endNormalAlarm) 
+				alarm.justResting = true
 			end
 			alarm.showIcon = v.showIcon == nil or v.showIcon
 			alarm.active = true
 			first_time = true
 			alarm.blinkTimer = 0
-			self.obj:Print("start " .. v.name)
 		end
 		if name and name == v.name  then
 			if (isStacked and count ~= alarm.lastCount) or (v.soundPersist and alarm.soundTimer > (v.soundRate or 2) and v.mode == PERSIST_MODE) or first_time then
@@ -879,7 +873,6 @@ function AuraAlarm:WatchForAura(elapsed)
 		end
 
 		if name == (v.name or "") and alarm.blinkTimer > (alarm.blinkRate or 1 + .6) and v.mode == tableFind(alarmModes, L["Blink"]) and not first_time then
-			self.obj:Print("blink")
 			self.obj.AAFrame:SetAlpha(0)
 --			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
 			if v.showIcon == nil or v.showIcon then
@@ -932,7 +925,6 @@ function AuraAlarm:WatchForAura(elapsed)
 	end
 
 	if alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead) or not activeAura then
-		self.obj:Print("fall off")
 		if alarm.wasPersist then
 --			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
 			self.obj.AAFrame:SetAlpha(0)
@@ -945,6 +937,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			v.active = false
 		end
 		alarm.fallTimer = 0
+		alarm.justResting = false
 	end
 
 	local totalActive = 0
