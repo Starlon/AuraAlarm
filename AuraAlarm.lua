@@ -780,7 +780,7 @@ function AuraAlarm:WatchForAura(elapsed)
 
 		local stackTest = (isStacked and aura and aura.count == count) or not isStacked
 
-		local first_time = false
+		local firstTime = false
 		if name and name == v.name and not alarm.active and not alarm.justResting and (isStacked and v.count == count or not isStacked) then
 			local c = self.obj.db.profile.alpha
 			local r, g, b, a = c.r, c.g, c.b, c.a
@@ -842,11 +842,11 @@ function AuraAlarm:WatchForAura(elapsed)
 			end
 			alarm.showIcon = v.showIcon == nil or v.showIcon
 			alarm.active = true
-			first_time = true
+			firstTime = true
 			alarm.blinkTimer = 0
 		end
 		if name and name == v.name  then
-			if (isStacked and count ~= alarm.lastCount) or (v.soundPersist and alarm.soundTimer > (v.soundRate or 2) and v.mode == PERSIST_MODE) or first_time then
+			if (isStacked and count ~= alarm.lastCount) or (v.soundPersist and alarm.soundTimer > (v.soundRate or 2) and v.mode == PERSIST_MODE) or firstTime then
 				PlaySoundFile(LSM:Fetch("sound", soundFiles[getLSMIndexByName("sound", v.soundFile) or getLSMIndexByName("sound", "None")]))
 				if isStacked and count ~= alarm.lastCount then
 					alarm.lastCount = count
@@ -863,7 +863,7 @@ function AuraAlarm:WatchForAura(elapsed)
 				alarm.fallOff = 0xdeadbeef
 			end
 			alarm.fallTimer = 0
-			if first_time then
+			if firstTime then
 				for k, v in pairs(self.currentAlarms) do
 					if k ~= v then
 						--v.active = false
@@ -872,7 +872,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			end
 		end
 
-		if name == (v.name or "") and alarm.blinkTimer > (alarm.blinkRate or 1 + .6) and v.mode == tableFind(alarmModes, L["Blink"]) and not first_time then
+		if name == (v.name or "") and alarm.blinkTimer > (alarm.blinkRate or 1 + .6) and v.mode == tableFind(alarmModes, L["Blink"]) and not firstTime then
 			self.obj.AAFrame:SetAlpha(0)
 --			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
 			if v.showIcon == nil or v.showIcon then
@@ -883,11 +883,9 @@ function AuraAlarm:WatchForAura(elapsed)
 				alarm.fallTimer = 0
 			end	
 			alarm.firstSound = false
---			if v.mode == tableFind(alarmModes, L["Blink"]) then
-				alarm.active = false
-				alarm.blinkTimer = 0
-				alarm.blinkRate = v.blinkRate
---			end
+			alarm.active = false
+			alarm.blinkTimer = 0
+			alarm.blinkRate = v.blinkRate
 		end
 			
 		local pos = 0
