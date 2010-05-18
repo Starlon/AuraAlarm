@@ -800,7 +800,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			end
 			for i = o, 1, -1 do
 				for k, v in pairs(self.currentAlarms) do
-					if (v.active or k.name == name) and i == (k.layer or 1) then
+					if (v.active or k.name == name) and i == (k.layer or 1) and not v.justSleeping then
 						p = k.color
 						if p.a == 255 then
 							r = p.r
@@ -838,6 +838,7 @@ function AuraAlarm:WatchForAura(elapsed)
 				blinkFrame.normalAlarm = v
 				blinkFrame.blinkRate = 3.6
 				blinkFrame:SetScript("OnUpdate", endNormalAlarm) 
+				alarm.justSleeping = true
 			end
 			alarm.showIcon = v.showIcon == nil or v.showIcon
 			alarm.active = true
@@ -945,6 +946,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			v.active = false
 		end
 		alarm.fallTimer = 0
+		alarm.justSleeping = false
 	end
 
 	local totalActive = 0
