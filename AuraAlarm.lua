@@ -844,6 +844,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			alarm.active = true
 			firstTime = true
 			alarm.blinkTimer = 0
+			alarm.count = count or 0
 		end
 		if name and name == v.name  then
 			if (isStacked and count ~= alarm.lastCount) or (v.soundPersist and alarm.soundTimer > (v.soundRate or 2) and v.mode == PERSIST_MODE) or firstTime then
@@ -889,21 +890,31 @@ function AuraAlarm:WatchForAura(elapsed)
 		end
 			
 		local pos = 0
+		local width = 0
 		for k, v in pairs(self.currentAlarms) do
 			self.obj.AAIconFrame.icons[k]:ClearAllPoints()
 			self.obj.AAIconFrame.texts[k]:ClearAllPoints()
 			if v.showIcon and v.active then
-				local x = pos * 44
+				local x
+
+				x = pos * 44
 				
 				self.obj.AAIconFrame.icons[k]:SetPoint("LEFT", x + 10, 0) 
-				self.obj.AAIconFrame.texts[k]:SetPoint("LEFT", x + 36, 0)
+				self.obj.AAIconFrame.texts[k]:SetPoint("LEFT", x + 34, 0)
 				pos = pos + 1
+				if v.count == 0 then
+					width = width + 44
+				else
+					width = width + 54
+				end
+
 			elseif v.showIcon and not v.active then
 				self.obj.AAIconFrame.icons[k]:SetTexture(nil)
 				self.obj.AAIconFrame.texts[k]:SetText("")
 			end
 		end
-		self.obj.AAIconFrame:SetWidth( pos * 44 + 24)
+			self.obj.AAIconFrame:SetWidth(width)
+		
 		alarm.timer = 0
 	end
 
