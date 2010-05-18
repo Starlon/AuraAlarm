@@ -781,7 +781,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		local stackTest = (isStacked and aura and aura.count == count) or not isStacked
 
 		local firstTime = false
-		if name and name == v.name and not alarm.active and not alarm.justResting and (isStacked and v.count == count or not isStacked) then
+		if name and name == v.name and not alarm.active and (isStacked and v.count == count or not isStacked) then
 			local c = self.obj.db.profile.alpha
 			local r, g, b, a = c.r, c.g, c.b, c.a
 
@@ -838,7 +838,6 @@ function AuraAlarm:WatchForAura(elapsed)
 				blinkFrame.normalAlarm = v
 				blinkFrame.blinkRate = 3.6
 				blinkFrame:SetScript("OnUpdate", endNormalAlarm) 
-				alarm.justResting = true
 			end
 			alarm.showIcon = v.showIcon == nil or v.showIcon
 			alarm.active = true
@@ -946,7 +945,6 @@ function AuraAlarm:WatchForAura(elapsed)
 			v.active = false
 		end
 		alarm.fallTimer = 0
-		alarm.justResting = false
 	end
 
 	local totalActive = 0
