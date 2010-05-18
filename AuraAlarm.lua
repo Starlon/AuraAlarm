@@ -652,7 +652,6 @@ local function endNormalAlarm(frame, elapsed)
 			end
 		end
 		blinkFrame:SetScript("OnUpdate", nil)	
-		AuraAlarm:Print("normal mode off")
 		frame.timer = 0
 	end
 end
@@ -780,7 +779,6 @@ function AuraAlarm:WatchForAura(elapsed)
 
 		local firstTime = false
 		if name and name == v.name and not alarm.active and not alarm.justResting and (isStacked and v.count == count or not isStacked) then
-			self.obj:Print("start alarm " .. v.name)
 			local c = self.obj.db.profile.alpha
 			local r, g, b, a = c.r, c.g, c.b, c.a
 
@@ -816,7 +814,6 @@ function AuraAlarm:WatchForAura(elapsed)
 			self.obj.AAFrame:SetBackdropColor(round(r) / 255, round(g) / 255, round(b) / 255, round(a) / 255)
 
 			if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
-				self.obj:Print("persist")
 				--UIFrameFadeIn(self.obj.AAFrame, .3, 0, 1)
 				self.obj.AAFrame:SetAlpha(1)
 				self.obj.AAFrame:Show()
