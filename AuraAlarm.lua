@@ -505,10 +505,10 @@ function AuraAlarm:OnInitialize()
 				name = L["Determined Mode Rate (in ms)"],
 				type = "input",
 				get = function()
-					return tostring((self.db.profile.determined_rate or 1) * 100)
+					return tostring((self.db.profile.determined_rate or 1) * 1000)
 				end,
 				set = function(info, v) 
-					self.db.profile.determined_rate = tonumber(v) / 100
+					self.db.profile.determined_rate = tonumber(v) / 1000
 				end,
 				pattern = "%d",
 				order = 4
@@ -663,22 +663,23 @@ function AuraAlarm:WatchForAura(elapsed)
 	local name, icon, count, expirationTime, id, _
 
 	if self.timer < .1 then
-		self.elapsed = (self.elapsed or 0) + 1
+		self.elapsed = (self.elapsed or 0) + elapsed
 		return
 	end
 
 	self.timer = 0
 
-	elapsed = self.elapsed
+	elapsed = self.elapsed + elapsed
 
 	self.elapsed = 0
 
 	if not self.currentAlarms then 
 		self.currentAlarms = {}
+		self.count = 0
 		for i, v in ipairs(self.obj.db.profile.auras) do
 
 			self.currentAlarms[v] = {name=v.name, type=v.type, unit=v.unit or "player", mode=v.mode, blinkRate=v.blinkRate, showIcon=v.showIcon, active=false, table=v, i=i, layer=v.layer}
-			self.count = (self.count or 0) + 1
+			self.count = self.count + 1
 		end
 	end
 
@@ -696,10 +697,10 @@ function AuraAlarm:WatchForAura(elapsed)
 
 	local alarm = self.currentAlarms[self.current]
 
-	alarm.timer = (alarm.timer or 0) + elapsed * self.count
-	alarm.fallTimer = (alarm.fallTimer or 0) + elapsed * self.count
-	alarm.blinkTimer = (alarm.blinkTimer or 0) + elapsed * self.count
-	alarm.soundTimer = (alarm.soundTimer or 0) + elapsed * self.count
+	alarm.timer = (alarm.timer or 0) + elapsed
+	alarm.fallTimer = (alarm.fallTimer or 0) + elapsed
+	alarm.blinkTimer = (alarm.blinkTimer or 0) + elapsed
+	alarm.soundTimer = (alarm.soundTimer or 0) + elapsed
 
 	local units = {}
 
@@ -752,7 +753,7 @@ function AuraAlarm:WatchForAura(elapsed)
 	if not self.background then self.background = Flash:New(self.obj.AAFrame) end
 	if not self.icon then self.icon = Flash:New(self.obj.AAIconFrame) end
 
-	if self.currentAlarms[self.current].timer > (self.obj.db.profile.determined_rate or 1) then
+	if alarm.timer > (self.obj.db.profile.determined_rate or 1) then
 		local i = alarm.i
 		local v = self.current
 
@@ -776,12 +777,13 @@ function AuraAlarm:WatchForAura(elapsed)
 			stackText = tostring(count)
 		end
 
-		self.currentAlarms[self.current].isStacked = isStacked
+		alarm.isStacked = isStacked
 
 		local stackTest = (isStacked and aura and aura.count == count) or not isStacked
 
 		local firstTime = false
 		if name and name == v.name and not alarm.active and not alarm.justResting and (isStacked and v.count == count or not isStacked) then
+			self.obj:Print("alert")
 			local c = self.obj.db.profile.alpha
 			local r, g, b, a = c.r, c.g, c.b, c.a
 
@@ -825,6 +827,7 @@ function AuraAlarm:WatchForAura(elapsed)
 				end
 				alarm.wasPersist = true
 			else
+				self.obj:Print("flashing")
 				self.background:Flash(.3, .3, 1.6, false, 0, 1)
 				if alarm.showIcon == nil or alarm.showIcon then
 					self.icon:Flash(.3, .3, 3.6, false, 0, 3)
@@ -853,11 +856,13 @@ function AuraAlarm:WatchForAura(elapsed)
 
 			self.obj.AAIconFrame.texts[v]:SetText(stackText)
 
-			alarm.fallOff = expirationTime - GetTime()
-			if alarm.fallOff < 0 then
-				alarm.fallOff = 0xdeadbeef
+			if not alarm.fallOff then
+				alarm.fallOff = expirationTime - GetTime()
+				if alarm.fallOff < 0 then
+					alarm.fallOff = 0xdeadbeef
+				end
+				alarm.fallTimer = 0
 			end
-			alarm.fallTimer = 0
 			if firstTime then
 				for k, v in pairs(self.currentAlarms) do
 					if k ~= v then
@@ -921,11 +926,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		activeAura = true
 	end
 
-	if not alarm.active then 
-		activeAura = true 
-	end
-
-	if alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead) or not activeAura then
+	if alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead) or (not activeAura and self.active) then
 		if alarm.wasPersist then
 			self.background:FadeOut(.3, 1, 0)
 			if alarm.showIcon == nil or alarm.showIcon then 
@@ -936,6 +937,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			v.active = false
 		end
 		alarm.fallTimer = 0
+		alarm.fallOff = nil
 		alarm.justSleeping = false
 	end
 
