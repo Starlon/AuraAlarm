@@ -783,7 +783,6 @@ function AuraAlarm:WatchForAura(elapsed)
 
 		local firstTime = false
 		if name and name == v.name and not alarm.active and not alarm.justResting and (isStacked and v.count == count or not isStacked) then
-			self.obj:Print("alert")
 			local c = self.obj.db.profile.alpha
 			local r, g, b, a = c.r, c.g, c.b, c.a
 
@@ -827,7 +826,6 @@ function AuraAlarm:WatchForAura(elapsed)
 				end
 				alarm.wasPersist = true
 			else
-				self.obj:Print("flashing")
 				self.background:Flash(.3, .3, 1.6, false, 0, 1)
 				if alarm.showIcon == nil or alarm.showIcon then
 					self.icon:Flash(.3, .3, 3.6, false, 0, 3)
