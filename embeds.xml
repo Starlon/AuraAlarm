@@ -11,6 +11,6 @@
 <Include file="Lib\AceGUI-3.0\AceGUI-3.0.xml"/>
 <Include file="Lib\AceConfig-3.0\AceConfig-3.0.xml"/>
 <Script file="Lib\LibSharedMedia-3.0\LibSharedMedia-3.0.lua"/>
-<Script file="LibFlash.lua"/>
+<Script file="Lib\LibFlash\LibFlash.lua"/>
 
 </Ui>

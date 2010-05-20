@@ -65,3 +65,6 @@ externals:
         url: svn://svn.wowace.com/wow/ace3/mainline/trunk/CallbackHandler-1.0
         tag: latest
     
+    Lib/LibFlash:
+        url: svn://svn.curseforge.net/wow/libflash/mainline/trunk
+        tag: latest
