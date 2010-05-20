@@ -1,8 +1,5 @@
 local _G = _G
 local pairs = _G.pairs
-local UIFrameFlash = _G.UIFrameFlash
-local UIFrameFadeIn = _G.UIFrameFadeIn
-local UIFrameFadeOut = _G.UIFrameFadeOut
 
 BINDING_HEADER_AURAALARM = "AuraAlarm";
 BINDING_NAME_ADDAURA = "Add Aura";
@@ -750,8 +747,8 @@ function AuraAlarm:WatchForAura(elapsed)
 		end
 	end
 
-	if not self.background then self.background = Flash:New(self.obj.AAFrame) end
-	if not self.icon then self.icon = Flash:New(self.obj.AAIconFrame) end
+	if not self.background then self.background = LibFlash:New(self.obj.AAFrame) end
+	if not self.icon then self.icon = LibFlash:New(self.obj.AAIconFrame) end
 
 	if alarm.timer > (self.obj.db.profile.determined_rate or 1) then
 		local i = alarm.i

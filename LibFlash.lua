@@ -1,5 +1,5 @@
 
-Flash = {
+LibFlash = {
 	pool = {},
 	New = function(self, frame)
 		if not frame then
@@ -33,12 +33,12 @@ Flash = {
 	end
 }
 
-function Flash:Stop()
+function LibFlash:Stop()
 	self.UpdateFrame:SetScript("OnUpdate", nil)
 	self.active = false
 end
 
-function Flash:FadeIn(dur, startA, finishA, callback, data)
+function LibFlash:FadeIn(dur, startA, finishA, callback, data)
 	self.UpdateFrame.timer = 0
 	self.UpdateFrame.elapsed = 0
 	if startA < finishA then
@@ -79,10 +79,10 @@ function Flash:FadeIn(dur, startA, finishA, callback, data)
 	self.active = true
 end
 
-Flash.FadeOut = Flash.FadeIn
+LibFlash.FadeOut = LibFlash.FadeIn
 
-function Flash:Flash(fadeinTime, fadeoutTime, flashDuration, showWhenDone, flashinHoldTime, flashoutHoldTime)
-	if not self.childFlash then self.childFlash = Flash:New(self.frame) end
+function LibFlash:Flash(fadeinTime, fadeoutTime, flashDuration, showWhenDone, flashinHoldTime, flashoutHoldTime)
+	if not self.childFlash then self.childFlash = LibFlash:New(self.frame) end
 
 	local state = 0
 
