@@ -749,8 +749,8 @@ function AuraAlarm:WatchForAura(elapsed)
 		end
 	end
 
-	if self.background == nil then self.background = Flash:New(self.obj.AAFrame) end
-	if self.icon == nil then self.icon = Flash:New(self.obj.AAIconFrame) end
+	if not self.background then self.background = Flash:New(self.obj.AAFrame) end
+	if not self.icon then self.icon = Flash:New(self.obj.AAIconFrame) end
 
 	if self.currentAlarms[self.current].timer > (self.obj.db.profile.determined_rate or 1) then
 		local i = alarm.i
@@ -816,24 +816,18 @@ function AuraAlarm:WatchForAura(elapsed)
 			end
 			self.obj.AAFrame:SetBackdropColor(round(r) / 255, round(g) / 255, round(b) / 255, round(a) / 255)
 
+			self.obj.AAFrame:SetAlpha(0)
+
 			if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
-				--UIFrameFadeIn(self.obj.AAFrame, .3, 0, 1)
 				self.background:FadeIn(.3, 0, 1)
-				--self.obj.AAFrame:SetAlpha(1)
 				if v.showIcon == nil or v.showIcon then
 					self.icon:FadeIn(.3, 0, 1)
-					--self.obj.AAIconFrame:SetAlpha(1)
-					--UIFrameFadeIn(self.obj.AAIconFrame, .3, 0, 1)
 				end
 				alarm.wasPersist = true
 			else
-				self.background:FadeIn(.3, 0, 1)
-				--UIFrameFlash(self.obj.AAFrame, .3, .3, 1.6, false, 0, 1)
-				--self.obj.AAFrame:SetAlpha(1)
+				self.background:Flash(.3, .3, 1.6, false, 0, 1)
 				if alarm.showIcon == nil or alarm.showIcon then
-					self.icon:FadeIn(.3, 0, 1)
-					--UIFrameFlash(self.obj.AAIconFrame, .3, .3, 3.6, false, 0, 3)
-					--self.obj.AAIconFrame:SetAlpha(1)
+					self.icon:Flash(.3, .3, 3.6, false, 0, 3)
 				end
 				blinkFrame.normalAlarm = v
 				blinkFrame.blinkRate = 3.6
@@ -874,13 +868,9 @@ function AuraAlarm:WatchForAura(elapsed)
 		end
 
 		if name == (v.name or "") and alarm.blinkTimer > (alarm.blinkRate or 1 + .6) and v.mode == tableFind(alarmModes, L["Blink"]) and not firstTime then
-			--self.obj.AAFrame:SetAlpha(0)
 			self.background:FadeOut(0.3, 1, 0)
---			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
 			if v.showIcon == nil or v.showIcon then
-				--self.obj.AAFrame:SetAlpha(0)
 				self.icon:FadeOut(0.3, 1, 0)
---				UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
 			end
 			if alarm.fallTimer > alarm.fallOff then
 				alarm.fallTimer = 0
@@ -937,12 +927,8 @@ function AuraAlarm:WatchForAura(elapsed)
 
 	if alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead) or not activeAura then
 		if alarm.wasPersist then
---			UIFrameFadeOut(self.obj.AAFrame, .3, 1, 0)
-			--self.obj.AAFrame:SetAlpha(0)
 			self.background:FadeOut(.3, 1, 0)
 			if alarm.showIcon == nil or alarm.showIcon then 
---				UIFrameFadeOut(self.obj.AAIconFrame, .3, 1, 0)
-				--self.obj.AAIconFrame:SetAlpha(0)
 				self.icon:FadeOut(.3, 1, 0)
 			end
 		end

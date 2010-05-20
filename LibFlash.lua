@@ -1,14 +1,18 @@
 
 Flash = {
-	pool = setmetatable({},{__mode='k'}),
+	pool = {},
 	New = function(self, frame)
 		if not frame then
 			error("No frame specified")
 		end
 
-		local obj = next(self.pool or {}) or {}
+		if not self.pool[frame] then
+			self.pool[frame] = setmetatable({}, {__mode='k'})
+		end
 
-		self.pool[obj] = nil
+		local obj = next(self.pool[frame] or {}) or {}
+
+		self.pool[frame][obj] = nil
 
 		setmetatable(obj, self)
 
@@ -23,11 +27,18 @@ Flash = {
 		return obj
 	end,
 	Del = function(self) 
-		self.pool[self] = true
+		if self.frame or self.pool[self.frame] then
+			self.pool[self.frame][self] = true
+		end
 	end
 }
 
-function Flash:FadeIn(dur, startA, finishA)
+function Flash:Stop()
+	self.UpdateFrame:SetScript("OnUpdate", nil)
+	self.active = false
+end
+
+function Flash:FadeIn(dur, startA, finishA, callback, data)
 	self.UpdateFrame.timer = 0
 	self.UpdateFrame.elapsed = 0
 	if startA < finishA then
@@ -57,16 +68,79 @@ function Flash:FadeIn(dur, startA, finishA)
 		self.elapsed = 0
 
 		if self.progress > 100 or self.progress <= 0 then
+			self.obj:Stop()
 			self:SetScript("OnUpdate", nil)
+			if callback then callback(data) end
 		end
 	end
 
 	
 	self.UpdateFrame:SetScript("OnUpdate", update)
+	self.active = true
 end
 
 Flash.FadeOut = Flash.FadeIn
 
-function Flash:Flash(fadeinTime, fadeoutTime, flashduration, showWhendone, flashinHoldTime, flashoutHoldTime)
+function Flash:Flash(fadeinTime, fadeoutTime, flashDuration, showWhenDone, flashinHoldTime, flashoutHoldTime)
+	if not self.childFlash then self.childFlash = Flash:New(self.frame) end
 
+	local state = 0
+
+	self.UpdateFrame.timer = 0
+	self.UpdateFrame.elapsed = 0
+	self.UpdateFrame.smallElapse = 0
+	self.UpdateFrame.flashinTimer = 0
+	self.UpdateFrame.flashoutTimer = 0
+	self.UpdateFrame.flashinHoldTimer = 0
+	self.UpdateFrame.flashoutHoldTimer = 0
+
+	local incrementState = function()
+		state = state + 1
+	end
+
+	local update = function(self, elapsed)
+		self.timer = self.timer + elapsed
+
+		self.elapsed = self.elapsed + elapsed
+
+		if self.timer < 0.1 then
+			self.smallElapse = self.smallElapse + elapsed
+			return
+		end
+
+		if state == 0 then
+			self.flashinHoldTimer = self.flashinHoldTimer + self.timer
+
+			if self.flashinHoldTimer > flashinHoldTime then
+				incrementState()
+				self.flashinHoldTimer = 0
+			end
+		elseif state == 1 then
+			if not self.flashin then
+				self.flashin = true
+				self.obj.childFlash:FadeIn(fadeinTime, 0, 1, incrementState)
+			end
+		elseif state == 2 then
+			self.flashin = false
+			self.flashoutHoldTimer = self.flashoutHoldTimer + self.timer
+
+			if self.flashoutHoldTimer > flashoutHoldTime then
+				self.obj.childFlash:FadeOut(fadeoutTime, 1, 0, incrementState)
+				self.flashoutHoldTimer = 0
+			end
+		elseif state == 3 then
+			if self.elapsed > flashDuration then
+				self.obj.UpdateFrame:SetScript("OnUpdate", nil)
+				if showWhenDone then
+					self.obj.childFlash:FadeIn(.01, 0, 1)
+				end
+				self.elapsed = 0
+			end		
+		end
+
+		self.timer = 0
+		self.smallElapse = 0
+	end
+
+	self.UpdateFrame:SetScript("OnUpdate", update)
 end
