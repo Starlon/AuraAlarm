@@ -3,7 +3,7 @@
 ## Title: AuraAlarm
 ## Author: Starlon
 ## Notes: Aura alarm.
-## OptionalDeps: Ace3, Babble-Spell-2.2, BetterBlizzOptions
+## OptionalDeps: Ace3, LibSharedMedia-1.0, BetterBlizzOptions, LibFlash
 ## SavedVariables: AuraAlarmDB
 ## X-License: GPL v3
 ## X-Category: Buffs
