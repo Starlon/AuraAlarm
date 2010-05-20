@@ -413,7 +413,7 @@ function AuraAlarm:BuildAurasOpts()
 			name = text,
 			type = 'execute',
 			func = function()
-				self.db.profile.auras[#self.db.profile.auras+1] = {name=k, color={r=255,g=0,b=0,a=42}, soundFile="None", mode=1, type=v == "DEBUFF" and 1 or 2} 
+				self.db.profile.auras[#self.db.profile.auras+1] = {name=k, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, type=v == "DEBUFF" and 1 or 2} 
 				self.captured_auras[k] = nil
 				self:BuildAurasOpts()
 				self:Print(L["%s added."]:format(k))
