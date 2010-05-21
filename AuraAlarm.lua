@@ -339,8 +339,22 @@ function AuraAlarm:BuildAurasOpts()
 					set = function(info, v)
 						self.db.profile.auras[k].layer = tonumber(v)
 					end,
-					pattern = "%d"
+					pattern = "%d",
+					order=13
 				},	
+				fadeTime = {
+					name = L["Fade Time"],
+					desc = L["Duration of fade 'in' and 'out' effects."],
+					type = "input",
+					get = function()
+						return tostring(self.db.profile.auras[k].fadeTime or .3)
+					end,
+					set = function(info, v)
+						self.db.profile.auras[k].fadeTime = tonumber(v)
+					end,
+					pattern = "%d",
+					order = 14
+				},
 				remove = {
 					name = L["Remove"],
 					type = 'execute',
@@ -353,7 +367,7 @@ function AuraAlarm:BuildAurasOpts()
 						self.AAWatchFrame.current = nil
 					end,
 					order=100
-				},				
+				}				
 			},
 			order = k+2			
 		}
@@ -369,7 +383,7 @@ function AuraAlarm:BuildAurasOpts()
 				desc = L["Add a aura"],
 				usage = L["<New aura here>"],
 				set = function(info, v) 
-					self.db.profile.auras[#self.db.profile.auras+1] = {name=v, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1} 
+					self.db.profile.auras[#self.db.profile.auras+1] = {name=v, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, fadeTime=.1} 
 					self:BuildAurasOpts() 
 					self:Print(L["%s added."]:format(v)) 
 					self.AAWatchFrame.currentAlarms = nil
@@ -410,7 +424,7 @@ function AuraAlarm:BuildAurasOpts()
 			name = text,
 			type = 'execute',
 			func = function()
-				self.db.profile.auras[#self.db.profile.auras+1] = {name=k, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, type=v == "DEBUFF" and 1 or 2} 
+				self.db.profile.auras[#self.db.profile.auras+1] = {name=k, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, type=v == "DEBUFF" and 1 or 2, flashTime=.1} 
 				self.captured_auras[k] = nil
 				self:BuildAurasOpts()
 				self:Print(L["%s added."]:format(k))
@@ -525,7 +539,7 @@ function AuraAlarm:OnInitialize()
 			},
 			alpha = {
 				name = L["Color key"],
-				desc = L["Usually a black color with no opacity."],
+				desc = L["Usually a black color with half opacity."],
 				type = 'color',
 				get = function()
 					local c = self.db.profile.alpha
@@ -538,7 +552,8 @@ function AuraAlarm:OnInitialize()
 						v.active = false
 					end
 				end,
-				hasAlpha = true
+				hasAlpha = true,
+				order = 7
 			}
 		}
 	}
@@ -750,6 +765,8 @@ function AuraAlarm:WatchForAura(elapsed)
 	if not self.background then self.background = LibFlash:New(self.obj.AAFrame) end
 	if not self.icon then self.icon = LibFlash:New(self.obj.AAIconFrame) end
 
+	self.current.fadeTime = self.current.fadeTime or .1
+
 	if alarm.timer > (self.obj.db.profile.determined_rate or 1) then
 		local i = alarm.i
 		local v = self.current
@@ -817,15 +834,16 @@ function AuraAlarm:WatchForAura(elapsed)
 			self.obj.AAFrame:SetAlpha(0)
 
 			if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
-				self.background:FadeIn(.3, 0, 1)
+				self.background:FadeIn(v.fadeTime, 0, 1)
 				if v.showIcon == nil or v.showIcon then
-					self.icon:FadeIn(.3, 0, 1)
+					self.icon:FadeIn(v.fadeTime, 0, 1)
 				end
 				alarm.wasPersist = true
 			else
-				self.background:Flash(.3, .3, 1.6, false, 0, 1)
+
+				self.background:Flash(v.fadeTime, v.fadeTime, 1 + v.fadeTime * 2, false, 0, 1)
 				if alarm.showIcon == nil or alarm.showIcon then
-					self.icon:Flash(.3, .3, 3.6, false, 0, 3)
+					self.icon:Flash(v.fadeTime, v.fadeTime, 3 + v.fadeTime * 2, false, 0, 3)
 				end
 				blinkFrame.normalAlarm = v
 				blinkFrame.blinkRate = 3.6
@@ -868,9 +886,9 @@ function AuraAlarm:WatchForAura(elapsed)
 		end
 
 		if name == (v.name or "") and alarm.blinkTimer > (alarm.blinkRate or 1 + .6) and v.mode == tableFind(alarmModes, L["Blink"]) and not firstTime then
-			self.background:FadeOut(0.3, 1, 0)
+			self.background:FadeOut(v.fadeTime, 1, 0)
 			if v.showIcon == nil or v.showIcon then
-				self.icon:FadeOut(0.3, 1, 0)
+				self.icon:FadeOut(v.fadeTime, 1, 0)
 			end
 			if alarm.fallTimer > alarm.fallOff then
 				alarm.fallTimer = 0
@@ -923,9 +941,9 @@ function AuraAlarm:WatchForAura(elapsed)
 
 	if alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead) or (not activeAura and self.active) then
 		if alarm.wasPersist then
-			self.background:FadeOut(.3, 1, 0)
+			self.background:FadeOut(self.current.fadeTime, 1, 0)
 			if alarm.showIcon == nil or alarm.showIcon then 
-				self.icon:FadeOut(.3, 1, 0)
+				self.icon:FadeOut(self.current.fadeTime, 1, 0)
 			end
 		end
 		for k, v in pairs(self.currentAlarms) do

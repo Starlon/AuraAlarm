@@ -59,5 +59,7 @@ L["Layer"] = true
 L["This alarm's layer."] = true
 L["How many screen layers. Each alarm can be assigned to any given layer within this many layers."] = true
 L["Color key"] = true
-L["Usually a black color with no opacity."] = true
+L["Usually a black color with half opacity."] = true
+L["Fade Time"] = true
+L["Duration of fade 'in' and 'out' effects."] = true
 
