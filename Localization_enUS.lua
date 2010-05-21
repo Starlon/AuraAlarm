@@ -62,4 +62,6 @@ L["Color key"] = true
 L["Usually a black color with half opacity."] = true
 L["Fade Time"] = true
 L["Duration of fade 'in' and 'out' effects."] = true
+L["Reset"] = true
+L["Click to reset AuraAlarm."] = true
 
