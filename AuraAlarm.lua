@@ -221,52 +221,6 @@ function AuraAlarm:BuildAurasOpts()
 					hasAlpha = true,
 					order = 3
 				},
-				soundFile = {
-					name = L["Warning Sound"],
-					type = "select",
-					desc = L["Sound to play"],
-					get = function()
-						return tableFind(LSM:List("sound"), self.db.profile.auras[k].soundFile or "None")
-					end,
-					set = function(info, v)
-						PlaySoundFile(LSM:Fetch("sound", soundFiles[v]))
-						self.db.profile.auras[k].soundFile = soundFiles[v]
-					end,
-					values = soundFiles,
-					order = 4
-				},
-				soundPersist = {
-					name = L["Persisting Sound"],
-					type = "toggle",
-					desc = L["Toggle repeating sound throughout aura. This only pertains to Persist Mode."],
-					get = function()
-						return self.db.profile.auras[k].soundPersist
-					end,
-					set = function(info, v)
-						if v then
-							self.opts.args.auras.args["Aura" .. tostring(k)].args.soundRate.disabled = false
-						else
-							self.opts.args.auras.args["Aura" .. tostring(k)].args.soundRate.disabled = true
-						end
-						self.db.profile.auras[k].soundPersist = v
-					end,
-					disabled = self.db.profile.auras[k].mode ~= PERSIST_MODE,
-					order = 5
-				},
-				soundRate = {
-					name = L["Sound Rate"],
-					type = "input",
-					desc = L["Rate at which Persisting Sound will fire. This is in milliseconds."],
-					get = function()
-						return tostring(self.db.profile.auras[k].soundRate or 3)
-					end,
-					set = function(info, v)
-						self.db.profile.auras[k].soundRate = tonumber(v)
-					end,
-					pattern = "%d",
-					disabled = not (self.db.profile.auras[k].mode == PERSIST_MODE and self.db.profile.auras[k].soundPersist),
-					order = 6
-				},
 				mode = {
 					name = L["Mode"],
 					type = "select",
@@ -290,6 +244,52 @@ function AuraAlarm:BuildAurasOpts()
 						end
 					end,
 					values = alarmModes,
+					order = 4
+				},
+				soundFile = {
+					name = L["Warning Sound"],
+					type = "select",
+					desc = L["Sound to play"],
+					get = function()
+						return tableFind(LSM:List("sound"), self.db.profile.auras[k].soundFile or "None")
+					end,
+					set = function(info, v)
+						PlaySoundFile(LSM:Fetch("sound", soundFiles[v]))
+						self.db.profile.auras[k].soundFile = soundFiles[v]
+					end,
+					values = soundFiles,
+					order = 5
+				},
+				soundPersist = {
+					name = L["Persisting Sound"],
+					type = "toggle",
+					desc = L["Toggle repeating sound throughout aura. This only pertains to Persist Mode."],
+					get = function()
+						return self.db.profile.auras[k].soundPersist
+					end,
+					set = function(info, v)
+						if v then
+							self.opts.args.auras.args["Aura" .. tostring(k)].args.soundRate.disabled = false
+						else
+							self.opts.args.auras.args["Aura" .. tostring(k)].args.soundRate.disabled = true
+						end
+						self.db.profile.auras[k].soundPersist = v
+					end,
+					disabled = self.db.profile.auras[k].mode ~= PERSIST_MODE,
+					order = 6
+				},
+				soundRate = {
+					name = L["Sound Rate"],
+					type = "input",
+					desc = L["Rate at which Persisting Sound will fire. This is in milliseconds."],
+					get = function()
+						return tostring(self.db.profile.auras[k].soundRate or 3)
+					end,
+					set = function(info, v)
+						self.db.profile.auras[k].soundRate = tonumber(v)
+					end,
+					pattern = "%d",
+					disabled = not (self.db.profile.auras[k].mode == PERSIST_MODE and self.db.profile.auras[k].soundPersist),
 					order = 7
 				},
 				blinkRate = {
@@ -650,11 +650,27 @@ local function findByIndex(tbl, i)
 	return nil
 end
 
+local showIcon
+local name, icon, count, expirationTime, id, _
+local alarm
+local units
+local auras
+local test
+local i, v, aura, at, isStacked, stackText, stackTest, firstTime
+local timer
+local pos, width, x
+local c
+local r, g, b, a
+local p
+local activeAura
+local aura
+local totalActive
+
 function AuraAlarm:WatchForAura(elapsed)
 	self.timer = (self.timer or 0) + elapsed
 
-	local showIcon
-	local name, icon, count, expirationTime, id, _
+	--local showIcon
+	--local name, icon, count, expirationTime, id, _
 
 	if self.timer < .01 then
 		self.elapsed = (self.elapsed or 0) + elapsed
@@ -689,14 +705,16 @@ function AuraAlarm:WatchForAura(elapsed)
 		self.current = findByIndex(self.currentAlarms, 1) 
 	end
 
-	local alarm = self.currentAlarms[self.current]
+	--local alarm = self.currentAlarms[self.current]
+	alarm = self.currentAlarms[self.current]
 
 	alarm.timer = (alarm.timer or 0) + elapsed
 	alarm.fallTimer = (alarm.fallTimer or 0) + elapsed
 	alarm.blinkTimer = (alarm.blinkTimer or 0) + elapsed
 	alarm.soundTimer = (alarm.soundTimer or 0) + elapsed
 
-	local units = {}
+	--local units = {}
+	units = {}
 
 	for i, v in pairs(self.obj.db.profile.auras) do
 		units[#units + 1] = v.unit or "player"
@@ -706,7 +724,8 @@ function AuraAlarm:WatchForAura(elapsed)
 		units[1] = "player"
 	end
 
-	local auras = {}
+	--local auras = {}
+	auras = {}
 	
 	for _, unit in ipairs(units) do
 		
@@ -730,7 +749,8 @@ function AuraAlarm:WatchForAura(elapsed)
 		for i = 1, 40 do
 			name = auras["player"][type][i] and auras["player"][type][i].name
 			if name and not self.obj.captured_auras[name] then
-				local test = false
+				--local test = false
+				test = false
 				for i = 1, #self.obj.db.profile.auras do
 					if self.obj.db.profile.auras[i].name == name then
 						test = true
@@ -750,11 +770,14 @@ function AuraAlarm:WatchForAura(elapsed)
 	self.current.fadeTime = self.current.fadeTime or .1
 
 	if alarm.timer > (self.obj.db.profile.determined_rate or 1) then
-		local i = alarm.i
-		local v = self.current
+		--local i = alarm.i
+		--local v = self.current
 
-		local aura
-		local at = auras[v.unit or "player"]
+		--local aura
+		--local at = auras[v.unit or "player"]
+		i = alarm.i
+		v = self.current
+		at = auras[v.unit or "player"]
 
 		if at and at[typeNames[v.type or 1] ] then
 			aura = at[typeNames[v.type or 1] ][v.name]
@@ -764,8 +787,10 @@ function AuraAlarm:WatchForAura(elapsed)
 			name, icon, count, expirationTime, id = aura.name, aura.icon, aura.count, aura.expirationTime, aura.id
 		end
 
-		local isStacked = true
-		local stackText = ""
+		--local isStacked = true
+		--local stackText = ""
+		isStacked = true
+		stackText = ""
 
 		if count == 0 or count == nil then
 			isStacked = false
@@ -775,9 +800,11 @@ function AuraAlarm:WatchForAura(elapsed)
 
 		alarm.isStacked = isStacked
 
-		local stackTest = (isStacked and aura and aura.count == count) or not isStacked
+		--local stackTest = (isStacked and aura and aura.count == count) or not isStacked
+		stackTest = (isStacked and aura and aura.count == count) or not isStacked
 
-		local firstTime = false
+		--local firstTime = false
+		firstTime = false
 		if name and name == v.name and not alarm.active and not alarm.justResting and (isStacked and v.count == count or not isStacked) then
 			if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
 				self.background:FadeIn(v.fadeTime, 0, 1)
@@ -787,7 +814,8 @@ function AuraAlarm:WatchForAura(elapsed)
 				alarm.wasPersist = true
 			else
 
-				local timer = 0
+				--local timer = 0
+				timer = 0
 				local goToSleep = function()
 					alarm.justResting = true
 					for k, currentAlarm in pairs(self.currentAlarms) do
@@ -821,18 +849,12 @@ function AuraAlarm:WatchForAura(elapsed)
 
 			self.obj.AAIconFrame.texts[v]:SetText(stackText)
 
-			--if not alarm.fallOff then
-				alarm.fallOff = expirationTime - GetTime()
-				if alarm.fallOff < 0 then
-					alarm.fallOff = 0xdeadbeef
-				end
-				alarm.fallTimer = 0
-			--end
-			if firstTime then
-				for k, v_ in pairs(self.currentAlarms) do
-					--v.active = false
-				end
+			alarm.fallOff = expirationTime - GetTime()
+			if alarm.fallOff < 0 then
+				alarm.fallOff = 0xdeadbeef
 			end
+
+			alarm.fallTimer = 0
 		end
 
 		if name == (v.name or "") and alarm.blinkTimer > (alarm.blinkRate or 1 + .6) and v.mode == tableFind(alarmModes, L["Blink"]) and not firstTime then
@@ -846,16 +868,16 @@ function AuraAlarm:WatchForAura(elapsed)
 			alarm.firstSound = false
 			alarm.active = false
 			alarm.blinkTimer = 0
-			alarm.blinkRate = v.blinkRate
 		end
 			
-		local pos = 0
-		local width = 0
+		--local pos = 0
+		--local width = 0
+		pos, width = 0, 0
 		for k, v in pairs(self.currentAlarms) do
 			self.obj.AAIconFrame.icons[k]:ClearAllPoints()
 			self.obj.AAIconFrame.texts[k]:ClearAllPoints()
 			if v.showIcon and v.active and not v.justResting then
-				local x
+				--local x
 
 				x = pos * 44
 				
@@ -875,9 +897,12 @@ function AuraAlarm:WatchForAura(elapsed)
 		end
 		self.obj.AAIconFrame:SetWidth(width)
 
-		local c = self.obj.db.profile.alpha
-		local r, g, b, a = c.r, c.g, c.b, c.a
-		local p
+		--local c = self.obj.db.profile.alpha
+		--local r, g, b, a = c.r, c.g, c.b, c.a
+		--local p
+		c = self.obj.db.profile.alpha
+		r, g, b, a = c.r, c.g, c.b, c.a
+
 
 		for k, v in pairs(self.currentAlarms) do
 			if v.active and not v.justResting then
@@ -893,8 +918,10 @@ function AuraAlarm:WatchForAura(elapsed)
 		alarm.timer = 0
 	end
 
-	local activeAura = false
-	local aura = auras[self.current.unit or "player"]
+	--local activeAura = false
+	--local aura = auras[self.current.unit or "player"]
+	activeAura = false
+	aura = auras[self.current.unit or "player"]
 
 	if aura then
 		aura = aura[typeNames[self.current.type or 1]][alarm.name]
@@ -912,19 +939,20 @@ function AuraAlarm:WatchForAura(elapsed)
 			end
 		end
 		refreshIcons()
-		--self.currentAlarms = nil
-		--self.current = nil
-		for k, v in pairs(self.currentAlarms) do
+		self.currentAlarms = nil
+		self.current = nil
+		--for k, v in pairs(self.currentAlarms) do
 			--v.active = false
-		end
-		alarm.active = false
-		alarm.fallTimer = 0
-		alarm.fallOff = nil
-		alarm.justResting = false
+		--end
+		--alarm.active = false
+		--alarm.fallTimer = 0
+		--alarm.fallOff = nil
+		--alarm.justResting = false
 
 	end
 
-	local totalActive = 0
+	--local totalActive = 0
+	totalActive = 0
 	if self.currentAlarms then for k, v in pairs(self.currentAlarms) do
 		if v.active then
 			totalActive = totalActive + 1
