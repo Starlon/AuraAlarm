@@ -144,6 +144,12 @@ local function cleanup(frame, elapsed)
 	end
 end
 
+local function clearCurrentAlarms()
+	del(AuraAlarm.AAWatchFrame.currentAlarms)
+	AuraAlarm.AAWatchFrame.currentAlarms = nil
+	AuraAlarm.AAWatchFrame.current = nil
+end
+
 local newFont, delFont
 do
 	local pool = {} --setmetatable({},{__mode='k'})
@@ -420,6 +426,19 @@ function AuraAlarm:BuildAurasOpts()
 					order = 15
 
 				},
+				enabled = {
+					name = L["Enabled"],
+					desc = L["Whether this alarm is enabled"],
+					type = "toggle",
+					get = function()
+						return self.db.profile.auras[k].enabled == nil or self.db.profile.auras[k].enabled
+					end,
+					set = function(info, v)
+						self.db.profile.auras[k].enabled = v
+						clearCurrentAlarms()
+					end,
+					order = 16
+				},
 				remove = {
 					name = L["Remove"],
 					type = 'execute',
@@ -428,8 +447,8 @@ function AuraAlarm:BuildAurasOpts()
 						table.remove(self.db.profile.auras, k) 
 						self:BuildAurasOpts() 
 						self:Print(L["Aura removed."]) 
-						self.AAWatchFrame.currentAlarms = nil
-						self.AAWatchFrame.current = nil
+						clearCurrentAlarms()
+						refreshIcons()
 					end,
 					order=100
 				}				
@@ -448,11 +467,10 @@ function AuraAlarm:BuildAurasOpts()
 				desc = L["Add a aura"],
 				usage = L["<New aura here>"],
 				set = function(info, v) 
-					self.db.profile.auras[#self.db.profile.auras+1] = {name=v, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, fadeTime=.1} 
+					self.db.profile.auras[#self.db.profile.auras+1] = {name=v, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, fadeTime=.1, active=true} 
 					self:BuildAurasOpts() 
 					self:Print(L["%s added."]:format(v)) 
-					self.AAWatchFrame.currentAlarms = nil
-					self.AAWatchFrame.current = nil
+					clearCurrentAlarms()
 					refreshIcons()
 				end,
 				get = function() end,
@@ -489,12 +507,11 @@ function AuraAlarm:BuildAurasOpts()
 			name = text,
 			type = 'execute',
 			func = function()
-				self.db.profile.auras[#self.db.profile.auras+1] = {name=k, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, type=v == "DEBUFF" and 1 or 2, flashTime=.1} 
+				self.db.profile.auras[#self.db.profile.auras+1] = {name=k, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, type=v == "DEBUFF" and 1 or 2, flashTime=.1, active=true} 
 				self.captured_auras[k] = nil
 				self:BuildAurasOpts()
 				self:Print(L["%s added."]:format(k))
-				self.AAWatchFrame.currentAlarms = nil
-				self.AAWatchFrame.current = nil
+				clearCurrentAlarms()
 				refreshIcons()
 			end,
 			order = v == "DEBUFF" and low or hi
@@ -557,9 +574,7 @@ function AuraAlarm:OnInitialize()
 					self.AAIconFrame:SetScript("OnUpdate", hideIcon)
 					self.AAIconFrame.timer = 0
 					if self.AAWatchFrame.currentAlarms then
-						del(self.AAWatchFrame.currentAlarms)
-						self.AAWAtchFrame.currentAlarms = nil
-						self.AAWatchFrame.current = nil
+						clearCurrentAlarms()
 					end
 
 				end,
@@ -655,8 +670,7 @@ function AuraAlarm:OnInitialize()
 				desc = L["Click to reset AuraAlarm."],
 				type = 'execute',
 				func = function()
-					self.AAWatchFrame.currentAlarms = nil
-					self.AAWatchFrame.current = nil
+					clearCurrentAlarms()
 					refreshIcons()
 				end,
 				order = 100
@@ -795,10 +809,40 @@ function AuraAlarm:WatchForAura(elapsed)
 		return
 	end
 
-	if self.timer < ((self.obj.db.profile.determined_rate or .4)) then
+
+	if not self.currentAlarms then 
+		self.count = 0
+		self.currentAlarms = new()
+		for i, v in ipairs(self.obj.db.profile.auras) do
+			if v.enabled == nil or v.enabled then
+				self.currentAlarms[v] = new()
+				local alarm = self.currentAlarms[v]
+				alarm.name = v.name
+				alarm.type = v.type or 1
+				alarm.unit = v.unit or "player"
+				alarm.mode = v.mode or 1
+				alarm.blinkRate = v.blinkRate or .5
+				alarm.showIcon = v.showIcon
+				alarm.active = false
+				alarm.table = v
+				alarm.i = self.count + 1
+				self.count = self.count + 1
+			end
+		end
+	end
+
+	if self.count == 0 then
+		return
+	end
+
+	if self.timer < ((self.obj.db.profile.determined_rate or .4) / self.count) then
 		self.elapsed = (self.elapsed or 0) + elapsed
 		return
 	end
+
+	elapsed = (self.elapsed or 0) + elapsed
+
+	self.elapsed = 0
 
 	self.timer = 0
 
@@ -809,42 +853,15 @@ function AuraAlarm:WatchForAura(elapsed)
 		self.gcTimer = 0
 	end
 
-	elapsed = (self.elapsed or 0) + elapsed
-
-	self.elapsed = 0
-
-	if not self.currentAlarms then 
-		self.currentAlarms = new()
-		self.count = 0
-		for i, v in ipairs(self.obj.db.profile.auras) do
-			if self.currentAlarms[v] then
-				del(self.currentAlarms[v])
-			end
-			self.currentAlarms[v] = new()
-			local alarm = self.currentAlarms[v]
-			alarm.name = v.name
-			alarm.type = v.type or 1
-			alarm.unit = v.unit or "player"
-			alarm.mode = v.mode or 1
-			alarm.blinkRate = v.blinkRate or .5
-			alarm.showIcon = v.showIcon
-			alarm.active = false
-			alarm.table = v
-			alarm.i = i
-			self.count = self.count + 1
-		end
-	end
-
-	if self.count == 0 then
-		return
-	end
-
 	if self.current then
 		self.current = findByIndex(self.currentAlarms, self.currentAlarms[self.current].i + 1)
 	end
 
 	if not self.current then
 		self.current = findByIndex(self.currentAlarms, 1) 
+		if not self.current then
+			return
+		end
 	end
 
 	local alarm = self.currentAlarms[self.current]
@@ -1118,9 +1135,7 @@ function AuraAlarm:WatchForAura(elapsed)
 
 	local restart = function()
 		refreshIcons()
-		del(self.currentAlarms)
-		self.currentAlarms = nil
-		self.current = nil
+		clearCurrentAlarms()
 	end
 
 	if alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead) or (not activeAura  and alarm.active) then
@@ -1131,9 +1146,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			end
 		else
 			refreshIcons()
-			del(self.currentAlarms)
-			self.currentAlarms = nil
-			self.current = nil
+			clearCurrentAlarms()
 		end
 	end
 
@@ -1265,7 +1278,7 @@ function AuraAlarm:AddAuraUnderMouse()
 			end
 		end
 		if isNotAlarm and buffName == scannedText then
-			self.db.profile.auras[#self.db.profile.auras+1] = {name=buffName, color={r=255,g=0,b=0,a=0.4 * 255}, duration=1, soundFile="None", flashBackground=true} 
+			self.db.profile.auras[#self.db.profile.auras+1] = {name=buffName, color={r=255,g=0,b=0,a=0.4 * 255}, duration=1, soundFile="None", flashBackground=true, active=true} 
 			self:BuildAurasOpts() 
 			self:Print(L["%s added to AuraAlarm."], buffName)
 			break

@@ -68,4 +68,5 @@ L["Garbage Collect"] = true
 L["Whether to collect garbage."] = true
 L["Garbage Collection Rate"] = true
 L["Rate at which garbage collection will be done (in ms)"] = true
-
+L["Enabled"] = true
+L["Whether this alarm is enabled"] = true
