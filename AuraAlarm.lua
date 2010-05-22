@@ -58,6 +58,9 @@ do
 	function new(...)
 		local t = next(pool)
 		if t then
+			for k, v in pairs(t) do
+				t[k] = nil
+			end
 			pool[t] = nil
 			for i=1, select("#", ...) do
 				t[i] = select(i, ...)
@@ -73,6 +76,9 @@ do
 			pool[t] = nil
 		else
 			t = {}			
+		end
+		for k, v in pairs(t) do
+			t[k] = nil
 		end
 		for i=1, select("#", ...), 2 do
 			t[select(i, ...)] = select(i+1, ...)
