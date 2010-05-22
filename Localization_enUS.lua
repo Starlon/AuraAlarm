@@ -64,4 +64,8 @@ L["Fade Time"] = true
 L["Duration of fade 'in' and 'out' effects."] = true
 L["Reset"] = true
 L["Click to reset AuraAlarm."] = true
+L["Garbage Collect"] = true
+L["Whether to collect garbage."] = true
+L["Garbage Collection Rate"] = true
+L["Rate at which garbage collection will be done (in ms)"] = true
 

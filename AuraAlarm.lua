@@ -52,6 +52,42 @@ local NORML_MODE, DETERMINED_MODE, MORE_DETERMINED_MODE = 1, 2, 3
 
 local FADE_IN, FADE_OUT = 1, 2
 
+local new, del, newDict
+do
+	local pool = setmetatable({},{__mode='k'})
+	function new(...)
+		local t = next(pool)
+		if t then
+			pool[t] = nil
+			for i=1, select("#", ...) do
+				t[i] = select(i, ...)
+			end
+			return t
+		else
+			return {...}
+		end
+	end
+	function newDict(...)
+		local t = next(pool)
+		if t then
+			pool[t] = nil
+		else
+			t = {}			
+		end
+		for i=1, select("#", ...), 2 do
+			t[select(i, ...)] = select(i+1, ...)
+		end
+		return t
+	end
+	function del(t)
+		if not t or type(t) ~= "table" then error("Argument passed is invalid, expected a table.") end
+		for k in pairs(t) do
+			t[k] = nil
+		end
+		pool[t] = true
+	end
+end
+
 local hideIcon = function(self, elapsed)
 	self.timer = (self.timer or 0) + 1
 
@@ -107,10 +143,14 @@ do
 	local pool = {} --setmetatable({},{__mode='k'})
 	newFont = function(frame)
 		if not frame or type(frame) ~= "table" then error("Argument passed is invalid, expected a table.") end
-		local t = next(pool) or frame:CreateFontString(nil, "LEFT")
-		t:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE, MONOCHROME")
-                t:SetFontObject(GameFontNormal)
-		pool[t] = nil
+		local t = next(pool)
+		if t then
+			pool[t] = nil
+		else
+			t = frame:CreateFontString(nil, "LEFT")
+			t:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE, MONOCHROME")
+	                t:SetFontObject(GameFontNormal)
+		end
 		return t
 	end
 
@@ -126,10 +166,14 @@ do
 	local pool = {} --setmetatable({}, {__mode='k'})
 	newIcon = function(frame)
 		if not frame or type(frame) ~= "table" then error("Argument passed is invalid, expected a table.") end
-		local t = next(pool) or frame:CreateTexture(nil, "DIALOG")
-		t:SetHeight(24)
-		t:SetWidth(24)
-		pool[t] = nil
+		local t = next(pool)
+		if t then
+			pool[t] = nil
+		else
+			t = frame:CreateTexture(nil, "DIALOG")
+			t:SetHeight(24)
+			t:SetWidth(24)
+		end
 		return t
 	end
 
@@ -541,6 +585,33 @@ function AuraAlarm:OnInitialize()
 				hasAlpha = true,
 				order = 6
 			},
+--[[
+			garbageCollect = {
+				name = L["Garbage Collect"],
+				desc = L["Whether to collect garbage."],
+				type = 'toggle',
+				get = function()
+					return self.db.profile.garbageCollect
+				end,
+				set = function(info, v)
+					self.db.profile.garbageCollect = v
+				end,
+				order = 7
+			},
+			gcRate = {
+				name = L["Garbage Collection Rate"],
+				desc = L["Rate at which garbage collection will be done (in ms)"],
+				type = 'input',
+				pattern = "%d",
+				get = function()
+					return tostring((self.db.profile.gcRate or 10) * 100)
+				end,
+				set = function(info, v)
+					self.db.profile.gcRate = tonumber(v / 100)
+				end,
+				order = 8
+			},
+]]
 			reset = {
 				name = L["Reset"],
 				desc = L["Click to reset AuraAlarm."],
@@ -553,7 +624,6 @@ function AuraAlarm:OnInitialize()
 			}
 		}
 	}
-
 
 	self.opts = opts
 
@@ -649,28 +719,32 @@ local function findByIndex(tbl, i)
 	end
 	return nil
 end
+	
+local newUnit, delUnit, newAura, delAura
 
-local showIcon
-local name, icon, count, expirationTime, id, _
-local alarm
-local units
-local auras
-local test
-local i, v, aura, at, isStacked, stackText, stackTest, firstTime
-local timer
-local pos, width, x
-local c
-local r, g, b, a
-local p
-local activeAura
-local aura
-local totalActive
+do
+	local pool = setmetatable({}, {__mode='k'})
+	newUnit = function()
+		local unit = next(pool) or {DEBUFF={}, BUFF={}}
+		pool[unit] = nil
+		return unit
+	end
+	delUnit = function(unit)
+		for _, type in pairs(typeNames) do
+			for k, aura in pairs(unit[type]) do
+				del(aura)
+				unit[type][k] = nil
+			end
+		end
+		pool[unit] = true
+	end
+end
 
 function AuraAlarm:WatchForAura(elapsed)
 	self.timer = (self.timer or 0) + elapsed
-
-	--local showIcon
-	--local name, icon, count, expirationTime, id, _
+	self.gcTimer = (self.gcTimer or 0) + elapsed
+	local showIcon
+	local name, icon, count, expirationTime, id, _
 
 	if self.timer < .01 then
 		self.elapsed = (self.elapsed or 0) + elapsed
@@ -679,16 +753,35 @@ function AuraAlarm:WatchForAura(elapsed)
 
 	self.timer = 0
 
+	if self.obj.db.profile.garbageCollect and self.gcTimer > (self.obj.db.profile.gcRate or 10) then
+		if self.obj.db.profile.garbageCollect and not InCombatLockdown() then
+			collectgarbage()
+		end
+		self.gcTimer = 0
+	end
+
 	elapsed = (self.elapsed or 0) + elapsed
 
 	self.elapsed = 0
 
 	if not self.currentAlarms then 
-		self.currentAlarms = {}
+		self.currentAlarms = new()
 		self.count = 0
 		for i, v in ipairs(self.obj.db.profile.auras) do
-
-			self.currentAlarms[v] = {name=v.name, type=v.type, unit=v.unit or "player", mode=v.mode, blinkRate=v.blinkRate, showIcon=v.showIcon, active=false, table=v, i=i}
+			if self.currentAlarms[v] then
+				del(self.currentAlarms[v])
+			end
+			self.currentAlarms[v] = new()
+			local alarm = self.currentAlarms[v]
+			alarm.name = v.name
+			alarm.type = v.type or 1
+			alarm.unit = v.unit or "player"
+			alarm.mode = v.mode or 1
+			alarm.blinkRate = v.blinkRate or .3
+			alarm.showIcon = v.showIcon
+			alarm.active = false
+			alarm.table = v
+			alarm.i = i
 			self.count = self.count + 1
 		end
 	end
@@ -705,16 +798,14 @@ function AuraAlarm:WatchForAura(elapsed)
 		self.current = findByIndex(self.currentAlarms, 1) 
 	end
 
-	--local alarm = self.currentAlarms[self.current]
-	alarm = self.currentAlarms[self.current]
+	local alarm = self.currentAlarms[self.current]
 
 	alarm.timer = (alarm.timer or 0) + elapsed
 	alarm.fallTimer = (alarm.fallTimer or 0) + elapsed
 	alarm.blinkTimer = (alarm.blinkTimer or 0) + elapsed
 	alarm.soundTimer = (alarm.soundTimer or 0) + elapsed
 
-	--local units = {}
-	units = {}
+	local units = {}
 
 	for i, v in pairs(self.obj.db.profile.auras) do
 		units[#units + 1] = v.unit or "player"
@@ -724,22 +815,58 @@ function AuraAlarm:WatchForAura(elapsed)
 		units[1] = "player"
 	end
 
-	--local auras = {}
-	auras = {}
-	
+	local auras = {}
+	if not auras then
+		auras = {}
+	else
+		for k, aura in pairs(auras) do
+			delUnit(aura)
+			auras[k] = nil
+		end
+	end
+
 	for _, unit in ipairs(units) do
 		
-		auras[unit] = {DEBUFF={}, BUFF={}}
+		if not auras[unit] then
+			auras[unit] = newUnit() --{DEBUFF={}, BUFF={}}
+		end
+
+		del(auras[unit]['DEBUFF'])
+		del(auras[unit]['BUFF'])
+		auras[unit]['DEBUFF'] = new()
+		auras[unit]['BUFF'] = new()
+
 		for i = 1, 40 do
 			name, _, icon, count, _, _, expirationTime, _, _, _, id = UnitDebuff(unit, i)
 			if name then 
-				auras[unit]['DEBUFF'][name] = {name=name, icon=icon, count=count, expirationTime=expirationTime, id=id, unit=v, i=i} 
+				if not auras[unit]['DEBUFF'][name] then 
+					auras[unit]['DEBUFF'][name] = new() 
+				end
 				auras[unit]['DEBUFF'][i] = auras[unit]['DEBUFF'][name]
+				auras[unit]['DEBUFF'][name].name = name
+				auras[unit]['DEBUFF'][name].icon = icon
+				auras[unit]['DEBUFF'][name].count = count
+				auras[unit]['DEBUFF'][name].expirationTime = expirationTime
+				auras[unit]['DEBUFF'][name].id = id
+				auras[unit]['DEBUFF'][name].id=id
+				auras[unit]['DEBUFF'][name].unit = unit
+				auras[unit]['DEBUFF'][name].i = i
+
 			end
 			name, _, icon, count, _, _, expirationTime, _, _, _, id = UnitBuff(unit, i)
 			if name then 
-				auras[unit]['BUFF'][name] = {name=name, icon=icon, count=count, expirationTime=expirationTime, id=id, unit=v, i=i} 
+				if not auras[unit]['BUFF'][name] then
+					auras[unit]['BUFF'][name] = new() 
+				end
 				auras[unit]['BUFF'][i] = auras[unit]['BUFF'][name]
+				auras[unit]['BUFF'][name].name = name
+				auras[unit]['BUFF'][name].icon = icon
+				auras[unit]['BUFF'][name].count = count
+				auras[unit]['BUFF'][name].expirationTime = expirationTime
+				auras[unit]['BUFF'][name].id = id
+				auras[unit]['BUFF'][name].id=id
+				auras[unit]['BUFF'][name].unit = unit
+				auras[unit]['BUFF'][name].i = i
 			end
 		end
 
@@ -749,8 +876,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		for i = 1, 40 do
 			name = auras["player"][type][i] and auras["player"][type][i].name
 			if name and not self.obj.captured_auras[name] then
-				--local test = false
-				test = false
+				local test = false
 				for i = 1, #self.obj.db.profile.auras do
 					if self.obj.db.profile.auras[i].name == name then
 						test = true
@@ -770,27 +896,24 @@ function AuraAlarm:WatchForAura(elapsed)
 	self.current.fadeTime = self.current.fadeTime or .1
 
 	if alarm.timer > (self.obj.db.profile.determined_rate or 1) then
-		--local i = alarm.i
-		--local v = self.current
+		local i = alarm.i
+		local v = self.current
 
-		--local aura
-		--local at = auras[v.unit or "player"]
-		i = alarm.i
-		v = self.current
-		at = auras[v.unit or "player"]
+		local aura
+		local at = auras[v.unit or "player"]
 
 		if at and at[typeNames[v.type or 1] ] then
 			aura = at[typeNames[v.type or 1] ][v.name]
 		end
+		
+		name, icon, count, expirationTime, id = nil, nil, nil, nil, nil
 
 		if aura then
 			name, icon, count, expirationTime, id = aura.name, aura.icon, aura.count, aura.expirationTime, aura.id
 		end
 
-		--local isStacked = true
-		--local stackText = ""
-		isStacked = true
-		stackText = ""
+		local isStacked = true
+		local stackText = ""
 
 		if count == 0 or count == nil then
 			isStacked = false
@@ -800,11 +923,9 @@ function AuraAlarm:WatchForAura(elapsed)
 
 		alarm.isStacked = isStacked
 
-		--local stackTest = (isStacked and aura and aura.count == count) or not isStacked
-		stackTest = (isStacked and aura and aura.count == count) or not isStacked
+		local stackTest = (isStacked and aura and aura.count == count) or not isStacked
 
-		--local firstTime = false
-		firstTime = false
+		local firstTime = false
 		if name and name == v.name and not alarm.active and not alarm.justResting and (isStacked and v.count == count or not isStacked) then
 			if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
 				self.background:FadeIn(v.fadeTime, 0, 1)
@@ -814,8 +935,7 @@ function AuraAlarm:WatchForAura(elapsed)
 				alarm.wasPersist = true
 			else
 
-				--local timer = 0
-				timer = 0
+				local timer = 0
 				local goToSleep = function()
 					alarm.justResting = true
 					for k, currentAlarm in pairs(self.currentAlarms) do
@@ -870,16 +990,13 @@ function AuraAlarm:WatchForAura(elapsed)
 			alarm.blinkTimer = 0
 		end
 			
-		--local pos = 0
-		--local width = 0
-		pos, width = 0, 0
+		local pos, width = 0, 0
 		for k, v in pairs(self.currentAlarms) do
 			self.obj.AAIconFrame.icons[k]:ClearAllPoints()
 			self.obj.AAIconFrame.texts[k]:ClearAllPoints()
 			if v.showIcon and v.active and not v.justResting then
-				--local x
 
-				x = pos * 44
+				local x = pos * 44
 				
 				self.obj.AAIconFrame.icons[k]:SetPoint("LEFT", x + 10, 0) 
 				self.obj.AAIconFrame.texts[k]:SetPoint("LEFT", x + 34, 0)
@@ -897,16 +1014,12 @@ function AuraAlarm:WatchForAura(elapsed)
 		end
 		self.obj.AAIconFrame:SetWidth(width)
 
-		--local c = self.obj.db.profile.alpha
-		--local r, g, b, a = c.r, c.g, c.b, c.a
-		--local p
-		c = self.obj.db.profile.alpha
-		r, g, b, a = c.r, c.g, c.b, c.a
-
+		local c = self.obj.db.profile.alpha
+		local r, g, b, a = c.r, c.g, c.b, c.a
 
 		for k, v in pairs(self.currentAlarms) do
 			if v.active and not v.justResting then
-				p = k.color
+				local p = k.color
 				r = (p.r * p.a + round(r) * (255 - p.a)) / 255
 				g = (p.g * p.a + round(g) * (255 - p.a)) / 255
 				b = (p.b * p.a + round(b) * (255 - p.a)) / 255
@@ -918,10 +1031,8 @@ function AuraAlarm:WatchForAura(elapsed)
 		alarm.timer = 0
 	end
 
-	--local activeAura = false
-	--local aura = auras[self.current.unit or "player"]
-	activeAura = false
-	aura = auras[self.current.unit or "player"]
+	local activeAura = false
+	local aura = auras[self.current.unit or "player"]
 
 	if aura then
 		aura = aura[typeNames[self.current.type or 1]][alarm.name]
@@ -939,6 +1050,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			end
 		end
 		refreshIcons()
+		del(self.currentAlarms)
 		self.currentAlarms = nil
 		self.current = nil
 		--for k, v in pairs(self.currentAlarms) do
@@ -951,13 +1063,13 @@ function AuraAlarm:WatchForAura(elapsed)
 
 	end
 
-	--local totalActive = 0
-	totalActive = 0
+	local totalActive = 0
 	if self.currentAlarms then for k, v in pairs(self.currentAlarms) do
 		if v.active then
 			totalActive = totalActive + 1
 		end
 	end
+
 	if totalActive == 0 then
 		self.obj.AAIconFrame:SetAlpha(0)
 		self.obj.AAFrame:SetAlpha(0)
