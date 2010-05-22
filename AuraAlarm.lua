@@ -48,7 +48,7 @@ local typeNames = {"DEBUFF", "BUFF"}
 
 local supportModes = {L["Normal"], L["Determined"]}
 
-local NORML_MODE, DETERMINED_MODE, MORE_DETERMINED_MODE = 1, 2, 3
+local NORML_MODE, DETERMINED_MODE = 1, 2
 
 local FADE_IN, FADE_OUT = 1, 2
 
@@ -195,14 +195,16 @@ local function refreshIcons()
 		for k, v in pairs(AuraAlarm.AAIconFrame.icons) do
 			delIcon(v)
 		end
+		del(AuraAlarm.AAIconFrame.icons)
 	end
 	if AuraAlarm.AAIconFrame.texts then
 		for k, v in pairs(AuraAlarm.AAIconFrame.texts) do
 			delFont(v)
 		end
+		del(AuraAlarm.AAIconFrame.texts)
 	end
-        AuraAlarm.AAIconFrame.icons = {}
-        AuraAlarm.AAIconFrame.texts = {}
+        AuraAlarm.AAIconFrame.icons = new()
+        AuraAlarm.AAIconFrame.texts = new()
         for i, v in pairs(AuraAlarm.db.profile.auras) do
                 if not AuraAlarm.AAIconFrame.icons[v] then
                         AuraAlarm.AAIconFrame.icons[v] = newIcon(AuraAlarm.AAIconFrame)
@@ -1055,7 +1057,7 @@ function AuraAlarm:WatchForAura(elapsed)
 				self.icon:FadeOut(self.current.fadeTime, 1, 0)
 			end
 		end
-		refreshIcons()
+		--refreshIcons()
 		del(self.currentAlarms)
 		self.currentAlarms = nil
 		self.current = nil
