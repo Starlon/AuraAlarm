@@ -1057,7 +1057,7 @@ function AuraAlarm:WatchForAura(elapsed)
 				self.icon:FadeOut(self.current.fadeTime, 1, 0)
 			end
 		end
-		--refreshIcons()
+		refreshIcons()
 		del(self.currentAlarms)
 		self.currentAlarms = nil
 		self.current = nil
