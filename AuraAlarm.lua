@@ -759,18 +759,23 @@ local function findByIndex(tbl, i)
 	return nil
 end
 	
-local newUnit, delUnit, newAura, delAura
+local newUnit, delUnit
 
 do
 	local pool = setmetatable({}, {__mode='k'})
 	newUnit = function()
-		local unit = next(pool) or {DEBUFF={}, BUFF={}}
-		pool[unit] = nil
+		local unit = next(pool)
+		if unit then 
+			pool[unit] = nil
+		else
+			unit = {DEBUFF={}, BUFF={}}
+		end
 		return unit
 	end
 	delUnit = function(unit)
+		if type(unit) ~= 'table' then error("Expected a table") end
 		for _, type in pairs(typeNames) do
-			for k, aura in pairs(unit[type]) do
+			for k, aura in pairs(unit[type] or {}) do
 				del(aura)
 				unit[type][k] = nil
 			end
@@ -779,6 +784,7 @@ do
 	end
 end
 
+-- Determined mode
 function AuraAlarm:WatchForAura(elapsed)
 	self.timer = (self.timer or 0) + elapsed
 	self.gcTimer = (self.gcTimer or 0) + elapsed
@@ -1136,14 +1142,26 @@ function AuraAlarm:WatchForAura(elapsed)
 		if v.active then
 			totalActive = totalActive + 1
 		end
-	end
+	end end
 
 	if totalActive == 0 then
 		self.obj.AAIconFrame:SetAlpha(0)
 		self.obj.AAFrame:SetAlpha(0)
-	end end
+	end 
+
+	for unit in pairs(units) do
+		if auras[unit] and auras[unit]['DEBUFF'] then
+			del(auras[unit]['DEBUFF'])
+			delUnit(auras[unit])
+		end
+		if auras[unit] and auras[unit]['BUFF'] then
+			del(auras[unit]['BUFF'])
+			delUnit(auras[unit])
+		end
+	end
 end
 
+-- Normal mode
 function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 	local _, eventtype, _, _, _, _, dst_name, _, _, aura_name, _, aura_type = ...
 
