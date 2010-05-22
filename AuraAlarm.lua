@@ -627,6 +627,7 @@ function AuraAlarm:OnInitialize()
 				func = function()
 					self.AAWatchFrame.currentAlarms = nil
 					self.AAWatchFrame.current = nil
+					refreshIcons()
 				end,
 				order = 100
 			}
