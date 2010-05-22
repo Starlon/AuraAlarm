@@ -348,7 +348,7 @@ function AuraAlarm:BuildAurasOpts()
 					name = L["Blink Rate"],
 					type = "input",
 					get = function() 
-						return tostring((self.db.profile.auras[k].blinkRate or 1) * 100)
+						return tostring((self.db.profile.auras[k].blinkRate or .3) * 100)
 					end,
 					set = function(info, v)
 						self.db.profile.auras[k].blinkRate = tonumber(v) / 100
@@ -398,10 +398,10 @@ function AuraAlarm:BuildAurasOpts()
 					desc = L["Duration of fade 'in' and 'out' effects."],
 					type = "input",
 					get = function()
-						return tostring(self.db.profile.auras[k].fadeTime or .3)
+						return tostring((self.db.profile.auras[k].fadeTime or .3) * 100)
 					end,
 					set = function(info, v)
-						self.db.profile.auras[k].fadeTime = tonumber(v)
+						self.db.profile.auras[k].fadeTime = tonumber(v) / 100
 					end,
 					pattern = "%d",
 					order = 14
@@ -556,6 +556,11 @@ function AuraAlarm:OnInitialize()
 					self.AAIconFrame:SetAlpha(1)
 					self.AAIconFrame:SetScript("OnUpdate", hideIcon)
 					self.AAIconFrame.timer = 0
+					if self.AAWatchFrame.currentAlarms then
+						del(self.AAWatchFrame.currentAlarms)
+						self.AAWAtchFrame.currentAlarms = nil
+						self.AAWatchFrame.current = nil
+					end
 
 				end,
 				min = -math.floor(GetScreenHeight()/2 + 0.5),
@@ -581,10 +586,10 @@ function AuraAlarm:OnInitialize()
 				name = L["Determined Mode Rate (in ms)"],
 				type = "input",
 				get = function()
-					return tostring((self.db.profile.determined_rate or 1) * 1000)
+					return tostring((self.db.profile.determined_rate or .4) * 100)
 				end,
 				set = function(info, v) 
-					self.db.profile.determined_rate = tonumber(v) / 1000
+					self.db.profile.determined_rate = tonumber(v) / 100
 				end,
 				pattern = "%d",
 				order = 5
@@ -784,7 +789,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		return
 	end
 
-	if self.timer < (self.obj.db.profile.determined_rate / #self.obj.db.profile.auras) then
+	if self.timer < ((self.obj.db.profile.determined_rate or .4)) then
 		self.elapsed = (self.elapsed or 0) + elapsed
 		return
 	end
@@ -815,7 +820,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			alarm.type = v.type or 1
 			alarm.unit = v.unit or "player"
 			alarm.mode = v.mode or 1
-			alarm.blinkRate = v.blinkRate or .3
+			alarm.blinkRate = v.blinkRate or .5
 			alarm.showIcon = v.showIcon
 			alarm.active = false
 			alarm.table = v
@@ -933,7 +938,7 @@ function AuraAlarm:WatchForAura(elapsed)
 
 	self.current.fadeTime = self.current.fadeTime or .1
 
-	if alarm.timer > (self.obj.db.profile.determined_rate or 1) then
+	if alarm.timer > (self.obj.db.profile.determined_rate or .4) then
 		local i = alarm.i
 		local v = self.current
 
@@ -965,7 +970,7 @@ function AuraAlarm:WatchForAura(elapsed)
 
 		local firstTime = false
 		if name and name == v.name and not alarm.active and not alarm.justResting and (isStacked and v.count == count or not isStacked) then
-			if alarmModes[v.mode or 1] == L["Persist"] or alarmModes[v.mode or 1] == L["Blink"] then 
+			if v.mode > 1 then -- Persist and Blink 
 				self.background:FadeIn(v.fadeTime, 0, 1)
 				if v.showIcon == nil or v.showIcon then
 					self.icon:FadeIn(v.fadeTime, 0, 1)
@@ -1015,7 +1020,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			alarm.fallTimer = 0
 		end
 
-		if name == (v.name or "") and alarm.blinkTimer > (alarm.blinkRate or 1 + .6) and v.mode == tableFind(alarmModes, L["Blink"]) and not firstTime then
+		if name == (v.name or "") and alarm.blinkTimer > alarm.blinkRate and v.mode == tableFind(alarmModes, L["Blink"]) then
 			self.background:FadeOut(v.fadeTime, 1, 0)
 			if v.showIcon == nil or v.showIcon then
 				self.icon:FadeOut(v.fadeTime, 1, 0)
@@ -1105,25 +1110,25 @@ function AuraAlarm:WatchForAura(elapsed)
 		activeAura = true
 	end
 
-	if alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead) or (not activeAura  and alarm.active) then
-		if alarm.wasPersist then
-			self.background:FadeOut(self.current.fadeTime, 1, 0)
-			if alarm.showIcon == nil or alarm.showIcon then 
-				self.icon:FadeOut(self.current.fadeTime, 1, 0)
-			end
-		end
+	local restart = function()
 		refreshIcons()
 		del(self.currentAlarms)
 		self.currentAlarms = nil
 		self.current = nil
-		--for k, v in pairs(self.currentAlarms) do
-			--v.active = false
-		--end
-		--alarm.active = false
-		--alarm.fallTimer = 0
-		--alarm.fallOff = nil
-		--alarm.justResting = false
+	end
 
+	if alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead) or (not activeAura  and alarm.active) then
+		if alarm.wasPersist then
+			self.background:FadeOut(self.current.fadeTime, 1, 0, restart)
+			if alarm.showIcon == nil or alarm.showIcon then 
+				self.icon:FadeOut(self.current.fadeTime, 1, 0)
+			end
+		else
+			refreshIcons()
+			del(self.currentAlarms)
+			self.currentAlarms = nil
+			self.current = nil
+		end
 	end
 
 	local totalActive = 0
@@ -1217,6 +1222,11 @@ function AuraAlarm:ChangeMode(v)
 		self.AAWatchFrame:SetScript("OnUpdate", nil)
 		self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	else
+		if self.AAWatchFrame.currentAlarms then
+			del(self.AAWatchFrame.currentAlarms)
+			self.AAWAtchFrame.currentAlarms = nil
+			self.AAWatchFrame.current = nil
+		end
 		self.AAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
 		self:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 	end
