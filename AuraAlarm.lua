@@ -406,6 +406,20 @@ function AuraAlarm:BuildAurasOpts()
 					pattern = "%d",
 					order = 14
 				},
+				layer = {
+					name = L["Layer"],
+					desc = L["This alarm's layer"],
+					type = 'input',
+					get = function() 
+						return tostring(self.db.profile.auras[k].layer or 1)
+					end,
+					set = function(info, v)
+						self.db.profile.auras[k].layer = tonumber(v)
+					end,
+					pattern = "%d",
+					order = 15
+
+				},
 				remove = {
 					name = L["Remove"],
 					type = 'execute',
@@ -609,14 +623,27 @@ function AuraAlarm:OnInitialize()
 				name = L["Garbage Collection Rate"],
 				desc = L["Rate at which garbage collection will be done (in ms)"],
 				type = 'input',
-				pattern = "%d",
 				get = function()
 					return tostring((self.db.profile.gcRate or 10) * 100)
 				end,
 				set = function(info, v)
 					self.db.profile.gcRate = tonumber(v / 100)
 				end,
+				pattern = "%d",
 				order = 8
+			},
+			layers = {
+				name = L["Layers"],
+				desc = L["How many screen layers"],
+				type = "input",
+				get = function()
+					return tostring(self.db.profile.layers or 2)
+				end,
+				set = function(info, v)
+					self.db.profile.layers = tonumber(v)
+				end,
+				pattern = "%d",
+				order = 9
 			},
 			reset = {
 				name = L["Reset"],
@@ -1027,13 +1054,38 @@ function AuraAlarm:WatchForAura(elapsed)
 
 		local c = self.obj.db.profile.alpha
 		local r, g, b, a = c.r, c.g, c.b, c.a
+		local o = self.obj.db.profile.layers or 2
 
-		for k, v in pairs(self.currentAlarms) do
-			if v.active and not v.justResting then
-				local p = k.color
-				r = (p.r * p.a + round(r) * (255 - p.a)) / 255
-				g = (p.g * p.a + round(g) * (255 - p.a)) / 255
-				b = (p.b * p.a + round(b) * (255 - p.a)) / 255
+		for l = 1, self.obj.db.profile.layers or 2 do
+			
+		end
+
+		local o = self.obj.db.profile.layers or 2
+		for l = 1, self.obj.db.profile.layers or 2 do
+			for k, v in pairs(self.currentAlarms) do
+				local p = k.color	
+				if p.a == 255 and v.active and not v.justResting then
+					o = l
+				end
+			end
+		end
+
+		for l = o, 1, -1 do
+			for k, v in pairs(self.currentAlarms) do
+				if v.active and not v.justResting then
+					if (k.layer or 2) == l then
+						local p = k.color
+						if p.a == 255 then
+							r = p.r
+							g = p.g
+							b = p.b
+						elseif p.a > 0 then
+							r = (p.r * p.a + round(r) * (255 - p.a)) / 255
+							g = (p.g * p.a + round(g) * (255 - p.a)) / 255
+							b = (p.b * p.a + round(b) * (255 - p.a)) / 255
+						end
+					end
+				end
 			end
 		end
 
