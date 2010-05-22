@@ -593,7 +593,6 @@ function AuraAlarm:OnInitialize()
 				hasAlpha = true,
 				order = 6
 			},
---[[
 			garbageCollect = {
 				name = L["Garbage Collect"],
 				desc = L["Whether to collect garbage."],
@@ -619,7 +618,6 @@ function AuraAlarm:OnInitialize()
 				end,
 				order = 8
 			},
-]]
 			reset = {
 				name = L["Reset"],
 				desc = L["Click to reset AuraAlarm."],
@@ -755,14 +753,18 @@ function AuraAlarm:WatchForAura(elapsed)
 	local showIcon
 	local name, icon, count, expirationTime, id, _
 
-	if self.timer < .01 then
+	if #self.obj.db.profile.auras == 0 then
+		return
+	end
+
+	if self.timer < (self.obj.db.profile.determined_rate / #self.obj.db.profile.auras) then
 		self.elapsed = (self.elapsed or 0) + elapsed
 		return
 	end
 
 	self.timer = 0
 
-	if self.obj.db.profile.garbageCollect and self.gcTimer > (self.obj.db.profile.gcRate or 10) then
+	if self.obj.db.profile.garbageCollect and self.gcTimer > (self.obj.db.profile.gcRate or 100) then
 		if self.obj.db.profile.garbageCollect and not InCombatLockdown() then
 			collectgarbage()
 		end
@@ -798,7 +800,7 @@ function AuraAlarm:WatchForAura(elapsed)
 	if self.count == 0 then
 		return
 	end
-	
+
 	if self.current then
 		self.current = findByIndex(self.currentAlarms, self.currentAlarms[self.current].i + 1)
 	end
