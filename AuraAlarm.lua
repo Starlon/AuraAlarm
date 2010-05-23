@@ -361,6 +361,7 @@ function AuraAlarm:BuildAurasOpts()
 					disabled = not (self.db.profile.auras[k].mode == PERSIST_MODE and self.db.profile.auras[k].soundPersist),
 					order = 7
 				},
+--[[
 				blinkRate = {
 					name = L["Blink Rate"],
 					type = "input",
@@ -373,6 +374,7 @@ function AuraAlarm:BuildAurasOpts()
 					pattern = "%d",
 					order = 8
 				},
+]]
 				unit = {
 					name = L["Unit"], 
 					type = "input",
@@ -922,7 +924,7 @@ function AuraAlarm:WatchForAura(elapsed)
 				alarm.type = v.type or 1
 				alarm.unit = v.unit or "player"
 				alarm.mode = v.mode or 1
-				alarm.blinkRate = v.blinkRate or .5
+				alarm.blinkRate = v.blinkRate or .3
 				alarm.showIcon = v.showIcon
 				alarm.active = false
 				alarm.table = v
