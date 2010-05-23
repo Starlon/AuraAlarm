@@ -50,6 +50,8 @@ local supportModes = {L["Normal"], L["Determined"]}
 
 local NORML_MODE, DETERMINED_MODE = 1, 2
 
+local alarmSets = {L["Default"]}
+
 local FADE_IN, FADE_OUT = 1, 2
 
 local new, del, newDict
@@ -219,6 +221,15 @@ local function refreshIcons()
                         AuraAlarm.AAIconFrame.texts[v] = newFont(AuraAlarm.AAIconFrame)
                 end
         end
+end
+
+function applySet()
+	for i, v in ipairs(AuraAlarm.db.profile.sets[AuraAlarm.db.profile.currentSet] or new()) do
+		if not AuraAlarm.db.profile.auras[i] then
+			break
+		end
+		AuraAlarm.db.profile.auras[i].enabled = v
+	end
 end
 
 function AuraAlarm:BuildAurasOpts()
@@ -445,6 +456,7 @@ function AuraAlarm:BuildAurasOpts()
 					desc = L["Remove aura"],
 					func = function() 
 						table.remove(self.db.profile.auras, k) 
+						table.remove(self.db.profile.sets, k)
 						self:BuildAurasOpts() 
 						self:Print(L["Aura removed."]) 
 						clearCurrentAlarms()
@@ -468,6 +480,7 @@ function AuraAlarm:BuildAurasOpts()
 				usage = L["<New aura here>"],
 				set = function(info, v) 
 					self.db.profile.auras[#self.db.profile.auras+1] = {name=v, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, fadeTime=.1, active=true} 
+					self.db.profile.sets[self.db.profile.currentSet] = {name = v, alarms = {} }
 					self:BuildAurasOpts() 
 					self:Print(L["%s added."]:format(v)) 
 					clearCurrentAlarms()
@@ -480,7 +493,7 @@ function AuraAlarm:BuildAurasOpts()
 		order=1
 	}
 
-	if self.captured_auras and count(self.captured_auras) > 0 then
+	if self.capturedAuras and count(self.capturedAuras) > 0 then
 		self.opts.args.auras.args.add.args.captured_header = {
 			type = "header",
 			name = L["Captured Auras - Click to add"],
@@ -490,7 +503,7 @@ function AuraAlarm:BuildAurasOpts()
 
 	local low, hi = 3, 3
 	
-	for i, v in pairs(self.captured_auras or {})  do
+	for i, v in pairs(self.capturedAuras or {})  do
 		if self.captured == "DEBUFF" then
 			low = low + 1
 		else
@@ -500,7 +513,7 @@ function AuraAlarm:BuildAurasOpts()
 
 	hi = low + hi
 
-	for k,v in pairs(self.captured_auras) do
+	for k,v in pairs(self.capturedAuras or {}) do
 		local text = k
 		if v == "DEBUFF" then text = text .. L[" (D)"] end
 		self.opts.args.auras.args.add.args[k] = {
@@ -508,7 +521,7 @@ function AuraAlarm:BuildAurasOpts()
 			type = 'execute',
 			func = function()
 				self.db.profile.auras[#self.db.profile.auras+1] = {name=k, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, type=v == "DEBUFF" and 1 or 2, flashTime=.1, active=true} 
-				self.captured_auras[k] = nil
+				self.capturedAuras[k] = nil
 				self:BuildAurasOpts()
 				self:Print(L["%s added."]:format(k))
 				clearCurrentAlarms()
@@ -573,10 +586,6 @@ function AuraAlarm:OnInitialize()
 					self.AAIconFrame:SetAlpha(1)
 					self.AAIconFrame:SetScript("OnUpdate", hideIcon)
 					self.AAIconFrame.timer = 0
-					if self.AAWatchFrame.currentAlarms then
-						clearCurrentAlarms()
-					end
-
 				end,
 				min = -math.floor(GetScreenHeight()/2 + 0.5),
 				max = math.floor(GetScreenHeight()/2 + 0.5),
@@ -665,13 +674,87 @@ function AuraAlarm:OnInitialize()
 				pattern = "%d",
 				order = 9
 			},
+			currentSet = {
+				name = L["Alarm Set"],
+				desc = L["Which alarm set to use"],
+				type = 'select',
+				get = function()
+					return self.db.profile.currentSet or 1
+				end,
+				set = function(info, v)
+					self.db.profile.currentSet = v
+					if not self.db.profile.sets[v] then
+						self.db.profile.sets[v] = new()
+						
+					end
+					for i, v in pairs(self.db.profile.auras) do
+						local val = self.db.profile.sets[self.db.profile.currentSet][i]
+						v.enabled = val == nil or val
+					end
+				end,
+				values = alarmSets,
+				order = 10
+			},
+			createSet = {
+				name = L["Create a Set"],
+				type = 'input',
+				get = function()
+				end,
+				set = function(info, v)
+					self.db.profile.sets[#self.db.profile.sets + 1] = new()
+					local set = self.db.profile.sets[#self.db.profile.sets]
+					set.name = v
+					set.alarms = new()
+					for i, v in ipairs(self.db.profile.auras) do
+						set.alarms[#set.alarms + 1] = v.enabled == nil or v.enabled
+					end
+					
+					alarmSets[#alarmSets + 1] = set.name
+
+					self.db.profile.currentSet = #alarmSets
+				end,
+				order = 11
+			},
+			saveSet = {
+				name = L["Save Set"],
+				type  = "execute",
+				func = function()
+					local size = #self.db.profile.sets[self.db.profile.currentSet]
+					del(self.db.profile.sets[self.db.profile.currentSet])
+					self.db.profile.sets[self.db.profile.currentSet] = new()
+					for i, v in ipairs(self.db.profile.auras) do
+						self.db.profile.sets[self.db.profile.currentSet][i] = v.enabled
+					end
+				end,
+				order = 12
+			},
+			deleteSet = {
+				name = L["Delete Set"],
+				type = 'execute',
+				func = function()
+					if self.db.profile.currentSet == 1 then
+						return
+					end
+
+					local set = self.db.profile.sets[self.db.profile.currentSet]
+					del(set.alarms or {})
+					set.alarms = nil
+					del(set)
+					table.remove(self.db.profile.sets, self.db.profile.currentSet)
+					table.remove(alarmSets, self.db.profile.currentSet)
+					self.db.profile.currentSet = 1
+					applySet()
+				end,
+				order = 13
+			},
 			reset = {
 				name = L["Reset"],
-				desc = L["Click to reset AuraAlarm."],
+				desc = L["Click this in case the icon or background doesn't fade."],
 				type = 'execute',
 				func = function()
 					clearCurrentAlarms()
 					refreshIcons()
+					applySet()
 				end,
 				order = 100
 			}
@@ -689,13 +772,21 @@ function AuraAlarm:OnInitialize()
 	self.db:RegisterDefaults({
 		profile = {
 			auras = {},
+			sets = {{}},
+			currentSet = 1,
 			x = 0,
 			y = 0,
 			alpha = {r = 0, g = 0, b = 0, a = 0.4 * 255}
 		}
 	})
+
+	for i, v in ipairs(self.db.profile.sets) do
+		alarmSets[i + 1] = v.name
+	end
+
+	applySet()
 	
-	self.captured_auras = {}
+	self.capturedAuras = {}
 	self:BuildAurasOpts()	
 	
 	self.AAFrame:SetFrameStrata("BACKGROUND")
@@ -941,7 +1032,7 @@ function AuraAlarm:WatchForAura(elapsed)
 	for i, type in pairs(typeNames) do
 		for i = 1, 40 do
 			name = auras["player"][type][i] and auras["player"][type][i].name
-			if name and not self.obj.captured_auras[name] then
+			if name and not self.obj.capturedAuras[name] then
 				local test = false
 				for i = 1, #self.obj.db.profile.auras do
 					if self.obj.db.profile.auras[i].name == name then
@@ -949,7 +1040,7 @@ function AuraAlarm:WatchForAura(elapsed)
 					end
 				end
 				if not test then
-					self.obj.captured_auras[name] = type
+					self.obj.capturedAuras[name] = type
 					self.obj.AARebuildFrame:SetScript("OnUpdate", self.obj.ProcessCaptures)
 				end
 			end
@@ -1241,8 +1332,8 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 		end
 	end
 	
-	if not self.captured_auras[aura_name] and dst_name == UnitName("player") then 
-		self.captured_auras[aura_name] = aura_type 
+	if not self.capturedAuras[aura_name] and dst_name == UnitName("player") then 
+		self.capturedAuras[aura_name] = aura_type 
 		self.AARebuildFrame:SetScript("OnUpdate", self.ProcessCaptures)
 	end
     
