@@ -447,7 +447,11 @@ function AuraAlarm:BuildAurasOpts()
 					desc = L["Remove aura"],
 					func = function() 
 						table.remove(self.db.profile.auras, k) 
-						table.remove(self.db.profile.sets, k)
+						for i, v in ipairs(self.db.profile.sets) do
+							if self.db.profile.sets[i][k] then
+								table.remove(self.db.profile.sets[i], k)
+							end
+						end
 						self:BuildAurasOpts() 
 						self:Print(L["Aura removed."]) 
 						clearCurrentAlarms()
@@ -549,6 +553,11 @@ function AuraAlarm:OnInitialize()
 				desc = L["Configure AuraAlarm"],
 				order = 2,
 				args = {
+					xyHeader = {
+						name = L["Coordinates"],
+						type = "header",
+						order = 1
+					},
 					x = {
 						name = "X",
 						desc = L["Frame x position"],
@@ -589,6 +598,11 @@ function AuraAlarm:OnInitialize()
 						step = 1,
 						order = 3
 					},
+					modeHeader = {
+						name = L["Mode"],
+						type = "header",
+						order = 4
+					},
 					mode = {
 						name = L["Support Mode"],
 						desc = L["Use 'Determined' for events that don't show up in the combat log."],
@@ -601,7 +615,7 @@ function AuraAlarm:OnInitialize()
 							self.db.profile.mode = v
 							self:ChangeMode(v)
 						end,
-						order = 4
+						order = 5
 					},
 					determined_rate = {
 						name = L["Determined Mode Rate (in ms)"],
@@ -613,7 +627,12 @@ function AuraAlarm:OnInitialize()
 							self.db.profile.determined_rate = tonumber(v) / 100
 						end,
 						pattern = "%d",
-						order = 5
+						order = 6
+					},
+					frameHeader = {
+						name = L["Frames"],
+						type = "header",
+						order = 7
 					},
 					alpha = {
 						name = L["Color key"],
@@ -631,7 +650,7 @@ function AuraAlarm:OnInitialize()
 							end
 						end,
 						hasAlpha = true,
-						order = 6
+						order = 8
 					},
 					fadeTime = {
 						name = L["Fade Time"],
@@ -644,7 +663,7 @@ function AuraAlarm:OnInitialize()
 							self.db.profile.fadeTime = tonumber(v) / 100
 						end,
 						pattern = "%d",
-						order = 7
+						order = 9
 					},
 					blinkRate = {
 						name = L["Blink Rate"],
@@ -656,32 +675,7 @@ function AuraAlarm:OnInitialize()
 							self.db.profile.blinkRate = tonumber(v) / 100
 						end,
 						pattern = "%d",
-						order = 8
-					},
-					garbageCollect = {
-						name = L["Garbage Collect"],
-						desc = L["Whether to collect garbage."],
-						type = 'toggle',
-						get = function()
-							return self.db.profile.garbageCollect
-						end,
-						set = function(info, v)
-							self.db.profile.garbageCollect = v
-						end,
-						order = 8
-					},
-					gcRate = {
-						name = L["Garbage Collection Rate"],
-						desc = L["Rate at which garbage collection will be done (in ms)"],
-						type = 'input',
-						get = function()
-							return tostring((self.db.profile.gcRate or 10) * 100)
-						end,
-						set = function(info, v)
-							self.db.profile.gcRate = tonumber(v / 100)
-						end,
-						pattern = "%d",
-						order = 9
+						order = 10
 					},
 					layers = {
 						name = L["Layers"],
@@ -694,7 +688,42 @@ function AuraAlarm:OnInitialize()
 							self.db.profile.layers = tonumber(v)
 						end,
 						pattern = "%d",
-						order = 10
+						order = 11
+					},
+					gcHeader = {
+						name = L["Memory"],
+						type = "header",
+						order = 12
+					},
+					garbageCollect = {
+						name = L["Garbage Collect"],
+						desc = L["Whether to collect garbage."],
+						type = 'toggle',
+						get = function()
+							return self.db.profile.garbageCollect
+						end,
+						set = function(info, v)
+							self.db.profile.garbageCollect = v
+						end,
+						order = 13
+					},
+					gcRate = {
+						name = L["Garbage Collection Rate"],
+						desc = L["Rate at which garbage collection will be done (in ms)"],
+						type = 'input',
+						get = function()
+							return tostring((self.db.profile.gcRate or 10) * 100)
+						end,
+						set = function(info, v)
+							self.db.profile.gcRate = tonumber(v / 100)
+						end,
+						pattern = "%d",
+						order = 14
+					},
+					setHeader = {
+						name = L["Sets"],
+						type = "header",
+						order = 15
 					},
 					currentSet = {
 						name = L["Alarm Set"],
@@ -717,7 +746,7 @@ function AuraAlarm:OnInitialize()
 							refreshIcons()
 						end,
 						values = alarmSets,
-						order = 11
+						order = 16
 					},
 					createSet = {
 						name = L["Create a Set"],
@@ -739,7 +768,7 @@ function AuraAlarm:OnInitialize()
 							clearCurrentAlarms()
 							refreshIcons()
 						end,
-						order = 12
+						order = 17
 					},
 					saveSet = {
 						name = L["Save Set"],
@@ -754,7 +783,7 @@ function AuraAlarm:OnInitialize()
 							clearCurrentAlarms()
 							refreshIcons()
 						end,
-						order = 13
+						order = 18
 					},
 					deleteSet = {
 						name = L["Delete Set"],
@@ -777,7 +806,12 @@ function AuraAlarm:OnInitialize()
 							refreshIcons()
 							applySet()
 						end,
-						order = 14
+						order = 18
+					},
+					resetHeader = {
+						name = L["Troubleshooting"],
+						type = "header",
+						order = 19
 					},
 					reset = {
 						name = L["Reset AuraAlarm"],
@@ -1156,6 +1190,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			firstTime = true
 			alarm.blinkTimer = 0
 			alarm.count = count or 0
+			self.obj.AAIconFrame.icons[v]:SetTexture(icon)
 		end
 		if name and name == v.name  then
 			if (isStacked and count ~= alarm.lastCount) or (v.soundPersist and alarm.soundTimer > (v.soundRate or 2) and v.mode == PERSIST_MODE) or firstTime then
@@ -1166,16 +1201,15 @@ function AuraAlarm:WatchForAura(elapsed)
 				alarm.soundTimer = 0
 			end
 
-			self.obj.AAIconFrame.icons[v]:SetTexture(icon)
 
 			self.obj.AAIconFrame.texts[v]:SetText(stackText)
 
-			alarm.fallOff = expirationTime - GetTime()
-			if alarm.fallOff < 0 then
-				alarm.fallOff = 0xdeadbeef
-			end
+--			alarm.fallOff = expirationTime - GetTime()
+--			if alarm.fallOff < 0 then
+--				alarm.fallOff = 0xdeadbeef
+--			end
 
-			alarm.fallTimer = 0
+--			alarm.fallTimer = 0
 		end
 
 --[[		if name == (v.name or "") and alarm.blinkTimer > alarm.blinkRate and v.mode == tableFind(alarmModes, L["Blink"]) then
