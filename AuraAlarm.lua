@@ -410,19 +410,6 @@ function AuraAlarm:BuildAurasOpts()
 					end,
 					order=12
 				},
-				fadeTime = {
-					name = L["Fade Time"],
-					desc = L["Duration of fade 'in' and 'out' effects."],
-					type = "input",
-					get = function()
-						return tostring((self.db.profile.auras[k].fadeTime or .3) * 100)
-					end,
-					set = function(info, v)
-						self.db.profile.auras[k].fadeTime = tonumber(v) / 100
-					end,
-					pattern = "%d",
-					order = 14
-				},
 				layer = {
 					name = L["Layer"],
 					desc = L["This alarm's layer"],
@@ -636,6 +623,19 @@ function AuraAlarm:OnInitialize()
 				hasAlpha = true,
 				order = 6
 			},
+			fadeTime = {
+				name = L["Fade Time"],
+				desc = L["Duration of fade 'in' and 'out' effects."],
+				type = "input",
+				get = function()
+					return tostring((self.db.profile.fadeTime or .3) * 100)
+				end,
+				set = function(info, v)
+					self.db.profile.fadeTime = tonumber(v) / 100
+				end,
+				pattern = "%d",
+				order = 7
+			},
 			garbageCollect = {
 				name = L["Garbage Collect"],
 				desc = L["Whether to collect garbage."],
@@ -646,7 +646,7 @@ function AuraAlarm:OnInitialize()
 				set = function(info, v)
 					self.db.profile.garbageCollect = v
 				end,
-				order = 7
+				order = 8
 			},
 			gcRate = {
 				name = L["Garbage Collection Rate"],
@@ -659,7 +659,7 @@ function AuraAlarm:OnInitialize()
 					self.db.profile.gcRate = tonumber(v / 100)
 				end,
 				pattern = "%d",
-				order = 8
+				order = 9
 			},
 			layers = {
 				name = L["Layers"],
@@ -672,7 +672,7 @@ function AuraAlarm:OnInitialize()
 					self.db.profile.layers = tonumber(v)
 				end,
 				pattern = "%d",
-				order = 9
+				order = 10
 			},
 			currentSet = {
 				name = L["Alarm Set"],
@@ -691,9 +691,11 @@ function AuraAlarm:OnInitialize()
 						local val = self.db.profile.sets[self.db.profile.currentSet][i]
 						v.enabled = val == nil or val
 					end
+					clearCurrentAlarms()
+					refreshIcons()
 				end,
 				values = alarmSets,
-				order = 10
+				order = 11
 			},
 			createSet = {
 				name = L["Create a Set"],
@@ -712,8 +714,10 @@ function AuraAlarm:OnInitialize()
 					alarmSets[#alarmSets + 1] = set.name
 
 					self.db.profile.currentSet = #alarmSets
+					clearCurrentAlarms()
+					refreshIcons()
 				end,
-				order = 11
+				order = 12
 			},
 			saveSet = {
 				name = L["Save Set"],
@@ -725,8 +729,10 @@ function AuraAlarm:OnInitialize()
 					for i, v in ipairs(self.db.profile.auras) do
 						self.db.profile.sets[self.db.profile.currentSet][i] = v.enabled
 					end
+					clearCurrentAlarms()
+					refreshIcons()
 				end,
-				order = 12
+				order = 13
 			},
 			deleteSet = {
 				name = L["Delete Set"],
@@ -740,12 +746,16 @@ function AuraAlarm:OnInitialize()
 					del(set.alarms or {})
 					set.alarms = nil
 					del(set)
+					self:Print(#self.db.profile.sets)
 					table.remove(self.db.profile.sets, self.db.profile.currentSet)
 					table.remove(alarmSets, self.db.profile.currentSet)
+					self:Print(#self.db.profile.sets)
 					self.db.profile.currentSet = 1
+					clearCurrentAlarms()
+					refreshIcons()
 					applySet()
 				end,
-				order = 13
+				order = 14
 			},
 			reset = {
 				name = L["Reset"],
@@ -1050,7 +1060,7 @@ function AuraAlarm:WatchForAura(elapsed)
 	if not self.background then self.background = LibFlash:New(self.obj.AAFrame) end
 	if not self.icon then self.icon = LibFlash:New(self.obj.AAIconFrame) end
 
-	self.current.fadeTime = self.current.fadeTime or .1
+	self.fadeTime = self.fadeTime or .3
 
 	if alarm.timer > (self.obj.db.profile.determined_rate or .4) then
 		local i = alarm.i
@@ -1084,14 +1094,13 @@ function AuraAlarm:WatchForAura(elapsed)
 
 		local firstTime = false
 		if name and name == v.name and not alarm.active and not alarm.justResting and (isStacked and v.count == count or not isStacked) then
-			if v.mode > 1 then -- Persist and Blink 
-				self.background:FadeIn(v.fadeTime, 0, 1)
-				if v.showIcon == nil or v.showIcon then
-					self.icon:FadeIn(v.fadeTime, 0, 1)
-				end
-				alarm.wasPersist = true
-			else
+			alarm.fallOff = expirationTime - GetTime()
+			if alarm.fallOff < 0 then
+				alarm.fallOff = 0xdeadbeef
+			end
+			alarm.fallTimer = 0
 
+			if v.mode == 1 then -- Normal
 				local timer = 0
 				local goToSleep = function()
 					alarm.justResting = true
@@ -1102,9 +1111,21 @@ function AuraAlarm:WatchForAura(elapsed)
 					end
 				end
 
-				self.background:Flash(v.fadeTime, v.fadeTime, 1 + v.fadeTime * 2, false, 0, 1)
+				self.background:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, 0, 1)
 				if alarm.showIcon == nil or alarm.showIcon then
-					self.icon:Flash(v.fadeTime, v.fadeTime, 3 + v.fadeTime * 2, false, 0, 3, goToSleep)
+					self.icon:Flash(self.fadeTime, self.fadeTime, 3 + self.fadeTime * 2, false, 0, 3, false, goToSleep)
+				end
+
+			elseif v.mode == 2 then -- Persist
+				self.background:FadeIn(self.fadeTime, 0, 1)
+				if v.showIcon == nil or v.showIcon then
+					self.icon:FadeIn(self.fadeTime, 0, 1)
+				end
+				alarm.wasPersist = true
+			elseif v.mode == 3 then -- Blink
+				self.background:Flash(self.fadeTime, self.fadeTime, alarm.fallOff + self.fadeTime * 2, false, 0, alarm.fallOff, true)
+				if v.showIcon == nil or v.showIcon then
+					self.icon:Flash(self.fadeTime, self.fadeTime, alarm.fallOff + self.fadeTime * 2, false, alarm.fallOff, true)
 				end
 			end
 			alarm.showIcon = v.showIcon == nil or v.showIcon
@@ -1134,7 +1155,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			alarm.fallTimer = 0
 		end
 
-		if name == (v.name or "") and alarm.blinkTimer > alarm.blinkRate and v.mode == tableFind(alarmModes, L["Blink"]) then
+--[[		if name == (v.name or "") and alarm.blinkTimer > alarm.blinkRate and v.mode == tableFind(alarmModes, L["Blink"]) then
 			self.background:FadeOut(v.fadeTime, 1, 0)
 			if v.showIcon == nil or v.showIcon then
 				self.icon:FadeOut(v.fadeTime, 1, 0)
@@ -1146,7 +1167,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			alarm.active = false
 			alarm.blinkTimer = 0
 		end
-			
+]]			
 		local pos, width = 0, 0
 		for k, v in pairs(self.currentAlarms) do
 			self.obj.AAIconFrame.icons[k]:ClearAllPoints()
