@@ -551,7 +551,7 @@ function AuraAlarm:OnInitialize()
 				name = L["Settings"],
 				type = "group",
 				desc = L["Configure AuraAlarm"],
-				order = 2,
+				order = 3,
 				args = {
 					xyHeader = {
 						name = L["Coordinates"],
@@ -720,11 +720,29 @@ function AuraAlarm:OnInitialize()
 						pattern = "%d",
 						order = 14
 					},
-					setHeader = {
-						name = L["Sets"],
+					resetHeader = {
+						name = L["Troubleshooting"],
 						type = "header",
-						order = 15
+						order = 19
 					},
+					reset = {
+						name = L["Reset AuraAlarm"],
+						desc = L["Click this in case the icon or background doesn't fade. May fix other issues as well."],
+						type = 'execute',
+						func = function()
+							clearCurrentAlarms()
+							refreshIcons()
+							applySet()
+						end,
+						order = 100
+					}
+				},
+			},
+			sets = {
+				name = L["Sets"],
+				type = "group",
+				order = 2,
+				args = {	
 					currentSet = {
 						name = L["Alarm Set"],
 						desc = L["Which alarm set to use"],
@@ -746,10 +764,11 @@ function AuraAlarm:OnInitialize()
 							refreshIcons()
 						end,
 						values = alarmSets,
-						order = 16
+						order = 1
 					},
 					createSet = {
 						name = L["Create a Set"],
+						desc = L["Toggle enabled off or on for each alarm. Enter a name for this set."],
 						type = 'input',
 						get = function()
 						end,
@@ -768,7 +787,7 @@ function AuraAlarm:OnInitialize()
 							clearCurrentAlarms()
 							refreshIcons()
 						end,
-						order = 17
+						order = 2
 					},
 					saveSet = {
 						name = L["Save Set"],
@@ -782,8 +801,9 @@ function AuraAlarm:OnInitialize()
 							end
 							clearCurrentAlarms()
 							refreshIcons()
+							self:Print(L["Set saved."])
 						end,
-						order = 18
+						order = 3
 					},
 					deleteSet = {
 						name = L["Delete Set"],
@@ -806,24 +826,8 @@ function AuraAlarm:OnInitialize()
 							refreshIcons()
 							applySet()
 						end,
-						order = 18
+						order = 4
 					},
-					resetHeader = {
-						name = L["Troubleshooting"],
-						type = "header",
-						order = 19
-					},
-					reset = {
-						name = L["Reset AuraAlarm"],
-						desc = L["Click this in case the icon or background doesn't fade. May fix other issues as well."],
-						type = 'execute',
-						func = function()
-							clearCurrentAlarms()
-							refreshIcons()
-							applySet()
-						end,
-						order = 100
-					}
 				}
 			}
 		}

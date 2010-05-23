@@ -84,3 +84,6 @@ L["Coordinates"] = true
 L["Frames"] = true
 L["Memory"] = true
 L["Troubleshooting"] = true
+L["Toggle enabled off or on for each alarm. Enter a name for this set."] = true
+L["Set saved."] = true
+
