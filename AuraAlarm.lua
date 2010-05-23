@@ -147,6 +147,8 @@ local function cleanup(frame, elapsed)
 end
 
 local function clearCurrentAlarms()
+	AuraAlarm.AAWatchFrame.background:Stop()
+	AuraAlarm.AAWatchFrame.icon:Stop()
 	del(AuraAlarm.AAWatchFrame.currentAlarms)
 	AuraAlarm.AAWatchFrame.currentAlarms = nil
 	AuraAlarm.AAWatchFrame.current = nil
@@ -541,234 +543,254 @@ function AuraAlarm:OnInitialize()
 				args = {},
 				order = 1
 			},
-			x = {
-				name = "X",
-				desc = L["Frame x position"],
-				type = "range",
-				get = function()
-					return self.db.profile.x
-				end,
-				set = function(info, v)
-					self.db.profile.x = v
-					self.AAIconFrame:ClearAllPoints()
-					self.AAIconFrame:SetPoint("CENTER", self.db.profile.x, self.db.profile.y)
-					self.AAIconFrame:SetAlpha(1)
-					self.AAIconFrame:SetScript("OnUpdate", hideIcon)
-					self.AAIconFrame.timer = 0
-				end,
-				min = -math.floor(GetScreenWidth()/2 + 0.5),
-				max = math.floor(GetScreenWidth()/2 + 0.5),
-				step = 1,
-				order = 2
-			},
-			y = {
-				name = "Y",
-				desc = L["Frame y position"],
-				type = "range",
-				get = function()
-					return self.db.profile.y
-				end,
-				set = function(info, v)
-					self.db.profile.y = v
-					self.AAIconFrame:ClearAllPoints()
-					self.AAIconFrame:SetPoint("CENTER", self.db.profile.x, self.db.profile.y)
-					self.AAIconFrame:SetAlpha(1)
-					self.AAIconFrame:SetScript("OnUpdate", hideIcon)
-					self.AAIconFrame.timer = 0
-				end,
-				min = -math.floor(GetScreenHeight()/2 + 0.5),
-				max = math.floor(GetScreenHeight()/2 + 0.5),
-				step = 1,
-				order = 3
-			},
-			mode = {
-				name = L["Support Mode"],
-				desc = L["Use 'Determined' for events that don't show up in the combat log."],
-				type = "select",
-				values = supportModes,
-				get = function()
-					return self.db.profile.mode or 1
-				end,
-				set  = function(info, v)
-					self.db.profile.mode = v
-					self:ChangeMode(v)
-				end,
-				order = 4
-			},
-			determined_rate = {
-				name = L["Determined Mode Rate (in ms)"],
-				type = "input",
-				get = function()
-					return tostring((self.db.profile.determined_rate or .4) * 100)
-				end,
-				set = function(info, v) 
-					self.db.profile.determined_rate = tonumber(v) / 100
-				end,
-				pattern = "%d",
-				order = 5
-			},
-			alpha = {
-				name = L["Color key"],
-				desc = L["Usually a black color with half opacity."],
-				type = 'color',
-				get = function()
-					local c = self.db.profile.alpha
-					return c.r / 255, c.g / 255, c.b / 255, c.a / 255
-				end,
-				set = function(info, r, g, b, a)
-					local c = self.db.profile.alpha
-					c.r, c.g, c.b, c.a = r * 255, g * 255, b * 255, a * 255
-					for k, v in pairs(self.AAWatchFrame.currentAlarms) do
-						v.active = false
-					end
-				end,
-				hasAlpha = true,
-				order = 6
-			},
-			fadeTime = {
-				name = L["Fade Time"],
-				desc = L["Duration of fade 'in' and 'out' effects."],
-				type = "input",
-				get = function()
-					return tostring((self.db.profile.fadeTime or .3) * 100)
-				end,
-				set = function(info, v)
-					self.db.profile.fadeTime = tonumber(v) / 100
-				end,
-				pattern = "%d",
-				order = 7
-			},
-			garbageCollect = {
-				name = L["Garbage Collect"],
-				desc = L["Whether to collect garbage."],
-				type = 'toggle',
-				get = function()
-					return self.db.profile.garbageCollect
-				end,
-				set = function(info, v)
-					self.db.profile.garbageCollect = v
-				end,
-				order = 8
-			},
-			gcRate = {
-				name = L["Garbage Collection Rate"],
-				desc = L["Rate at which garbage collection will be done (in ms)"],
-				type = 'input',
-				get = function()
-					return tostring((self.db.profile.gcRate or 10) * 100)
-				end,
-				set = function(info, v)
-					self.db.profile.gcRate = tonumber(v / 100)
-				end,
-				pattern = "%d",
-				order = 9
-			},
-			layers = {
-				name = L["Layers"],
-				desc = L["How many screen layers"],
-				type = "input",
-				get = function()
-					return tostring(self.db.profile.layers or 2)
-				end,
-				set = function(info, v)
-					self.db.profile.layers = tonumber(v)
-				end,
-				pattern = "%d",
-				order = 10
-			},
-			currentSet = {
-				name = L["Alarm Set"],
-				desc = L["Which alarm set to use"],
-				type = 'select',
-				get = function()
-					return self.db.profile.currentSet or 1
-				end,
-				set = function(info, v)
-					self.db.profile.currentSet = v
-					if not self.db.profile.sets[v] then
-						self.db.profile.sets[v] = new()
-						
-					end
-					for i, v in pairs(self.db.profile.auras) do
-						local val = self.db.profile.sets[self.db.profile.currentSet][i]
-						v.enabled = val == nil or val
-					end
-					clearCurrentAlarms()
-					refreshIcons()
-				end,
-				values = alarmSets,
-				order = 11
-			},
-			createSet = {
-				name = L["Create a Set"],
-				type = 'input',
-				get = function()
-				end,
-				set = function(info, v)
-					self.db.profile.sets[#self.db.profile.sets + 1] = new()
-					local set = self.db.profile.sets[#self.db.profile.sets]
-					set.name = v
-					set.alarms = new()
-					for i, v in ipairs(self.db.profile.auras) do
-						set.alarms[#set.alarms + 1] = v.enabled == nil or v.enabled
-					end
-					
-					alarmSets[#alarmSets + 1] = set.name
-
-					self.db.profile.currentSet = #alarmSets
-					clearCurrentAlarms()
-					refreshIcons()
-				end,
-				order = 12
-			},
-			saveSet = {
-				name = L["Save Set"],
-				type  = "execute",
-				func = function()
-					local size = #self.db.profile.sets[self.db.profile.currentSet]
-					del(self.db.profile.sets[self.db.profile.currentSet])
-					self.db.profile.sets[self.db.profile.currentSet] = new()
-					for i, v in ipairs(self.db.profile.auras) do
-						self.db.profile.sets[self.db.profile.currentSet][i] = v.enabled
-					end
-					clearCurrentAlarms()
-					refreshIcons()
-				end,
-				order = 13
-			},
-			deleteSet = {
-				name = L["Delete Set"],
-				type = 'execute',
-				func = function()
-					if self.db.profile.currentSet == 1 then
-						return
-					end
-
-					local set = self.db.profile.sets[self.db.profile.currentSet]
-					del(set.alarms or {})
-					set.alarms = nil
-					del(set)
-					self:Print(#self.db.profile.sets)
-					table.remove(self.db.profile.sets, self.db.profile.currentSet)
-					table.remove(alarmSets, self.db.profile.currentSet)
-					self:Print(#self.db.profile.sets)
-					self.db.profile.currentSet = 1
-					clearCurrentAlarms()
-					refreshIcons()
-					applySet()
-				end,
-				order = 14
-			},
-			reset = {
-				name = L["Reset"],
-				desc = L["Click this in case the icon or background doesn't fade."],
-				type = 'execute',
-				func = function()
-					clearCurrentAlarms()
-					refreshIcons()
-					applySet()
-				end,
-				order = 100
+			settings = {
+				name = L["Settings"],
+				type = "group",
+				desc = L["Configure AuraAlarm"],
+				order = 2,
+				args = {
+					x = {
+						name = "X",
+						desc = L["Frame x position"],
+						type = "range",
+						get = function()
+							return self.db.profile.x
+						end,
+						set = function(info, v)
+							self.db.profile.x = v
+							self.AAIconFrame:ClearAllPoints()
+							self.AAIconFrame:SetPoint("CENTER", self.db.profile.x, self.db.profile.y)
+							self.AAIconFrame:SetAlpha(1)
+							self.AAIconFrame:SetScript("OnUpdate", hideIcon)
+							self.AAIconFrame.timer = 0
+						end,
+						min = -math.floor(GetScreenWidth()/2 + 0.5),
+						max = math.floor(GetScreenWidth()/2 + 0.5),
+						step = 1,
+						order = 2
+					},
+					y = {
+						name = "Y",
+						desc = L["Frame y position"],
+						type = "range",
+						get = function()
+							return self.db.profile.y
+						end,
+						set = function(info, v)
+							self.db.profile.y = v
+							self.AAIconFrame:ClearAllPoints()
+							self.AAIconFrame:SetPoint("CENTER", self.db.profile.x, self.db.profile.y)
+							self.AAIconFrame:SetAlpha(1)
+							self.AAIconFrame:SetScript("OnUpdate", hideIcon)
+							self.AAIconFrame.timer = 0
+						end,
+						min = -math.floor(GetScreenHeight()/2 + 0.5),
+						max = math.floor(GetScreenHeight()/2 + 0.5),
+						step = 1,
+						order = 3
+					},
+					mode = {
+						name = L["Support Mode"],
+						desc = L["Use 'Determined' for events that don't show up in the combat log."],
+						type = "select",
+						values = supportModes,
+						get = function()
+							return self.db.profile.mode or 1
+						end,
+						set  = function(info, v)
+							self.db.profile.mode = v
+							self:ChangeMode(v)
+						end,
+						order = 4
+					},
+					determined_rate = {
+						name = L["Determined Mode Rate (in ms)"],
+						type = "input",
+						get = function()
+							return tostring((self.db.profile.determined_rate or .4) * 100)
+						end,
+						set = function(info, v) 
+							self.db.profile.determined_rate = tonumber(v) / 100
+						end,
+						pattern = "%d",
+						order = 5
+					},
+					alpha = {
+						name = L["Color key"],
+						desc = L["Usually a black color with half opacity."],
+						type = 'color',
+						get = function()
+							local c = self.db.profile.alpha
+							return c.r / 255, c.g / 255, c.b / 255, c.a / 255
+						end,
+						set = function(info, r, g, b, a)
+							local c = self.db.profile.alpha
+							c.r, c.g, c.b, c.a = r * 255, g * 255, b * 255, a * 255
+							for k, v in pairs(self.AAWatchFrame.currentAlarms) do
+								v.active = false
+							end
+						end,
+						hasAlpha = true,
+						order = 6
+					},
+					fadeTime = {
+						name = L["Fade Time"],
+						desc = L["Duration of fade 'in' and 'out' effects."],
+						type = "input",
+						get = function()
+							return tostring((self.db.profile.fadeTime or .3) * 100)
+						end,
+						set = function(info, v)
+							self.db.profile.fadeTime = tonumber(v) / 100
+						end,
+						pattern = "%d",
+						order = 7
+					},
+					blinkRate = {
+						name = L["Blink Rate"],
+						type = "input",
+						get = function() 
+							return tostring((self.db.profile.blinkRate or .3) * 100)
+						end,
+						set = function(info, v)
+							self.db.profile.blinkRate = tonumber(v) / 100
+						end,
+						pattern = "%d",
+						order = 8
+					},
+					garbageCollect = {
+						name = L["Garbage Collect"],
+						desc = L["Whether to collect garbage."],
+						type = 'toggle',
+						get = function()
+							return self.db.profile.garbageCollect
+						end,
+						set = function(info, v)
+							self.db.profile.garbageCollect = v
+						end,
+						order = 8
+					},
+					gcRate = {
+						name = L["Garbage Collection Rate"],
+						desc = L["Rate at which garbage collection will be done (in ms)"],
+						type = 'input',
+						get = function()
+							return tostring((self.db.profile.gcRate or 10) * 100)
+						end,
+						set = function(info, v)
+							self.db.profile.gcRate = tonumber(v / 100)
+						end,
+						pattern = "%d",
+						order = 9
+					},
+					layers = {
+						name = L["Layers"],
+						desc = L["How many screen layers"],
+						type = "input",
+						get = function()
+							return tostring(self.db.profile.layers or 2)
+						end,
+						set = function(info, v)
+							self.db.profile.layers = tonumber(v)
+						end,
+						pattern = "%d",
+						order = 10
+					},
+					currentSet = {
+						name = L["Alarm Set"],
+						desc = L["Which alarm set to use"],
+						type = 'select',
+						get = function()
+							return self.db.profile.currentSet or 1
+						end,
+						set = function(info, v)
+							self.db.profile.currentSet = v
+							if not self.db.profile.sets[v] then
+								self.db.profile.sets[v] = new()
+								
+							end
+							for i, v in pairs(self.db.profile.auras) do
+								local val = self.db.profile.sets[self.db.profile.currentSet][i]
+								v.enabled = val == nil or val
+							end
+							clearCurrentAlarms()
+							refreshIcons()
+						end,
+						values = alarmSets,
+						order = 11
+					},
+					createSet = {
+						name = L["Create a Set"],
+						type = 'input',
+						get = function()
+						end,
+						set = function(info, v)
+							self.db.profile.sets[#self.db.profile.sets + 1] = new()
+							local set = self.db.profile.sets[#self.db.profile.sets]
+							set.name = v
+							set.alarms = new()
+							for i, v in ipairs(self.db.profile.auras) do
+								set.alarms[#set.alarms + 1] = v.enabled == nil or v.enabled
+							end
+							
+							alarmSets[#alarmSets + 1] = set.name
+		
+							self.db.profile.currentSet = #alarmSets
+							clearCurrentAlarms()
+							refreshIcons()
+						end,
+						order = 12
+					},
+					saveSet = {
+						name = L["Save Set"],
+						type  = "execute",
+						func = function()
+							local size = #self.db.profile.sets[self.db.profile.currentSet]
+							del(self.db.profile.sets[self.db.profile.currentSet])
+							self.db.profile.sets[self.db.profile.currentSet] = new()
+							for i, v in ipairs(self.db.profile.auras) do
+								self.db.profile.sets[self.db.profile.currentSet][i] = v.enabled
+							end
+							clearCurrentAlarms()
+							refreshIcons()
+						end,
+						order = 13
+					},
+					deleteSet = {
+						name = L["Delete Set"],
+						type = 'execute',
+						func = function()
+							if self.db.profile.currentSet == 1 then
+								return
+							end
+		
+							local set = self.db.profile.sets[self.db.profile.currentSet]
+							del(set.alarms or {})
+							set.alarms = nil
+							del(set)
+							self:Print(#self.db.profile.sets)
+							table.remove(self.db.profile.sets, self.db.profile.currentSet)
+							table.remove(alarmSets, self.db.profile.currentSet)
+							self:Print(#self.db.profile.sets)
+							self.db.profile.currentSet = 1
+							clearCurrentAlarms()
+							refreshIcons()
+							applySet()
+						end,
+						order = 14
+					},
+					reset = {
+						name = L["Reset AuraAlarm"],
+						desc = L["Click this in case the icon or background doesn't fade. May fix other issues as well."],
+						type = 'execute',
+						func = function()
+							clearCurrentAlarms()
+							refreshIcons()
+							applySet()
+						end,
+						order = 100
+					}
+				}
 			}
 		}
 	}
@@ -924,7 +946,6 @@ function AuraAlarm:WatchForAura(elapsed)
 				alarm.type = v.type or 1
 				alarm.unit = v.unit or "player"
 				alarm.mode = v.mode or 1
-				alarm.blinkRate = v.blinkRate or .3
 				alarm.showIcon = v.showIcon
 				alarm.active = false
 				alarm.table = v
@@ -1115,7 +1136,7 @@ function AuraAlarm:WatchForAura(elapsed)
 
 				self.background:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, 0, 1)
 				if alarm.showIcon == nil or alarm.showIcon then
-					self.icon:Flash(self.fadeTime, self.fadeTime, 3 + self.fadeTime * 2, false, 0, 3, false, goToSleep)
+					self.icon:Flash(self.fadeTime, self.fadeTime, 3 + self.fadeTime * 2, false, 0, 3, false, 0, goToSleep)
 				end
 
 			elseif v.mode == 2 then -- Persist
@@ -1125,9 +1146,9 @@ function AuraAlarm:WatchForAura(elapsed)
 				end
 				alarm.wasPersist = true
 			elseif v.mode == 3 then -- Blink
-				self.background:Flash(self.fadeTime, self.fadeTime, alarm.fallOff + self.fadeTime * 2, false, 0, alarm.fallOff, true)
+				self.background:Flash(self.fadeTime, self.fadeTime, alarm.fallOff + self.fadeTime * 2, false, 0, alarm.fallOff, true, self.obj.db.profile.blinkRate)
 				if v.showIcon == nil or v.showIcon then
-					self.icon:Flash(self.fadeTime, self.fadeTime, alarm.fallOff + self.fadeTime * 2, false, alarm.fallOff, true)
+					self.icon:Flash(self.fadeTime, self.fadeTime, alarm.fallOff + self.fadeTime * 2, false, alarm.fallOff, true, self.obj.db.profile.blinkRate)
 				end
 			end
 			alarm.showIcon = v.showIcon == nil or v.showIcon
