@@ -1148,7 +1148,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			elseif v.mode == 3 then -- Blink
 				self.background:Flash(self.fadeTime, self.fadeTime, alarm.fallOff + self.fadeTime * 2, false, 0, alarm.fallOff, true, self.obj.db.profile.blinkRate)
 				if v.showIcon == nil or v.showIcon then
-					self.icon:Flash(self.fadeTime, self.fadeTime, alarm.fallOff + self.fadeTime * 2, false, alarm.fallOff, true, self.obj.db.profile.blinkRate)
+					self.icon:Flash(self.fadeTime, self.fadeTime, alarm.fallOff + self.fadeTime * 2, false, 0, alarm.fallOff, true, self.obj.db.profile.blinkRate)
 				end
 			end
 			alarm.showIcon = v.showIcon == nil or v.showIcon
