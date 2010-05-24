@@ -226,12 +226,40 @@ local function refreshIcons()
 end
 
 function applySet()
-	for i, v in ipairs(AuraAlarm.db.profile.sets[AuraAlarm.db.profile.currentSet] or new()) do
+	local set = AuraAlarm.db.profile.sets[AuraAlarm.db.profile.currentSet or 1]
+
+	if not set or not set.alarms then return end
+
+	local applied = false
+	for i, v in ipairs(set.alarms) do
 		if not AuraAlarm.db.profile.auras[i] then
 			break
 		end
 		AuraAlarm.db.profile.auras[i].enabled = v
+		applied = true
 	end
+	if applied then
+		AuraAlarm:Print(L["Set %s applied."]:format(set.name or L["Default"]))
+	end
+end
+
+function commandHandler(data)
+	local command, val = AuraAlarm:GetArgs(data, 2)
+	if not command or not val then 
+		AuraAlarm:Print(L["Usage: /auraalarm getset Default"])
+		return 
+	end
+	if string.lower(command) == "getset" then
+		for i, v in ipairs(AuraAlarm.db.profile.sets) do
+			if val == v.name then
+				AuraAlarm.db.profile.currentSet = i
+				applySet()
+				clearCurrentAlarms()
+				return
+			end
+		end
+	end
+	AuraAlarm:Print((val or "") .. L[" is not a valid set."])
 end
 
 function AuraAlarm:BuildAurasOpts()
@@ -449,8 +477,8 @@ function AuraAlarm:BuildAurasOpts()
 					func = function() 
 						table.remove(self.db.profile.auras, k) 
 						for i, v in ipairs(self.db.profile.sets) do
-							if self.db.profile.sets[i][k] ~= nil then
-								table.remove(self.db.profile.sets[i], k)
+							if self.db.profile.sets[i].alarms[k] ~= nil then
+								table.remove(self.db.profile.sets[i].alarms, k)
 							end
 						end
 						self:BuildAurasOpts() 
@@ -476,7 +504,9 @@ function AuraAlarm:BuildAurasOpts()
 				usage = L["<New aura here>"],
 				set = function(info, v) 
 					self.db.profile.auras[#self.db.profile.auras+1] = {name=v, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, fadeTime=.1, active=true} 
-					self.db.profile.sets[self.db.profile.currentSet] = {name = v, alarms = {} }
+					for i, set in ipairs(self.db.profile.sets) do
+						set.alarms[#set.alarms + 1] = true
+					end
 					self:BuildAurasOpts() 
 					self:Print(L["%s added."]:format(v)) 
 					clearCurrentAlarms()
@@ -519,9 +549,15 @@ function AuraAlarm:BuildAurasOpts()
 				self.db.profile.auras[#self.db.profile.auras+1] = {name=k, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, type=v == "DEBUFF" and 1 or 2, flashTime=.1, active=true} 
 				self.capturedAuras[k] = nil
 				self:BuildAurasOpts()
-				self:Print(L["%s added."]:format(k))
+
+				for i, set in ipairs(self.db.profile.sets) do
+					set.alarms[#set.alarms + 1] = true
+				end
+
 				clearCurrentAlarms()
 				refreshIcons()
+
+				self:Print(L["%s added."]:format(k))
 			end,
 			order = v == "DEBUFF" and low or hi
 		}
@@ -753,16 +789,23 @@ function AuraAlarm:OnInitialize()
 						end,
 						set = function(info, v)
 							self.db.profile.currentSet = v
+							self:Print(v)
 							if not self.db.profile.sets[v] then
 								self.db.profile.sets[v] = new()
-								
 							end
 							for i, v in pairs(self.db.profile.auras) do
-								local val = self.db.profile.sets[self.db.profile.currentSet][i]
-								v.enabled = val == nil or val
+								local set = self.db.profile.sets[self.db.profile.currentSet]
+								if set then
+									if set.alarms then
+										v.enabled = set.alarms[i] == nil or set.alarms[i]
+									else
+										v.enabled = true
+									end
+								end
 							end
 							clearCurrentAlarms()
 							refreshIcons()
+							applySet()
 						end,
 						values = alarmSets,
 						order = 1
@@ -794,11 +837,13 @@ function AuraAlarm:OnInitialize()
 						name = L["Save Set"],
 						type  = "execute",
 						func = function()
-							local size = #self.db.profile.sets[self.db.profile.currentSet]
-							del(self.db.profile.sets[self.db.profile.currentSet])
-							self.db.profile.sets[self.db.profile.currentSet] = new()
+							local set = self.db.profile.sets[self.db.profile.currentSet]
+							
 							for i, v in ipairs(self.db.profile.auras) do
-								self.db.profile.sets[self.db.profile.currentSet][i] = v.enabled
+								if not set.alarms then
+									set.alarms = new()
+								end
+								set.alarms[i] = v.enabled
 							end
 							clearCurrentAlarms()
 							refreshIcons()
@@ -815,13 +860,13 @@ function AuraAlarm:OnInitialize()
 							end
 		
 							local set = self.db.profile.sets[self.db.profile.currentSet]
+
 							del(set.alarms or {})
 							set.alarms = nil
 							del(set)
-							self:Print(#self.db.profile.sets)
+
 							table.remove(self.db.profile.sets, self.db.profile.currentSet)
 							table.remove(alarmSets, self.db.profile.currentSet)
-							self:Print(#self.db.profile.sets)
 							self.db.profile.currentSet = 1
 							clearCurrentAlarms()
 							refreshIcons()
@@ -838,14 +883,14 @@ function AuraAlarm:OnInitialize()
 
 	LibStub("AceConfig-3.0"):RegisterOptionsTable("AuraAlarm", opts)
 
-	self:RegisterChatCommand("/da", "/auraalarm", opts)
+	self:RegisterChatCommand("auraalarm", commandHandler)
     
 	AceConfigDialog:AddToBlizOptions("AuraAlarm")
 	
 	self.db:RegisterDefaults({
 		profile = {
 			auras = {},
-			sets = {{}},
+			sets = {{name=L["Default"]}},
 			currentSet = 1,
 			x = 0,
 			y = 0,
@@ -854,7 +899,7 @@ function AuraAlarm:OnInitialize()
 	})
 
 	for i, v in ipairs(self.db.profile.sets) do
-		alarmSets[i + 1] = v.name
+		alarmSets[i] = v.name or L["Default"]
 	end
 
 	applySet()
@@ -1314,9 +1359,9 @@ function AuraAlarm:WatchForAura(elapsed)
 
 	if alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead) or (not activeAura  and alarm.active) then
 		if alarm.wasPersist then
-			self.background:FadeOut(self.current.fadeTime, 1, 0, restart)
+			self.background:FadeOut(self.fadeTime, 1, 0, restart)
 			if alarm.showIcon == nil or alarm.showIcon then 
-				self.icon:FadeOut(self.current.fadeTime, 1, 0)
+				self.icon:FadeOut(self.fadeTime, 1, 0)
 			end
 		else
 			refreshIcons()
