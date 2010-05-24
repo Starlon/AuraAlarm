@@ -259,7 +259,7 @@ function commandHandler(data)
 			end
 		end
 	end
-	AuraAlarm:Print((val or "") .. L[" is not a valid set."])
+	AuraAlarm:Print(val .. L[" is not a valid set."])
 end
 
 function AuraAlarm:BuildAurasOpts()
@@ -392,20 +392,6 @@ function AuraAlarm:BuildAurasOpts()
 					disabled = not (self.db.profile.auras[k].mode == PERSIST_MODE and self.db.profile.auras[k].soundPersist),
 					order = 7
 				},
---[[
-				blinkRate = {
-					name = L["Blink Rate"],
-					type = "input",
-					get = function() 
-						return tostring((self.db.profile.auras[k].blinkRate or .3) * 100)
-					end,
-					set = function(info, v)
-						self.db.profile.auras[k].blinkRate = tonumber(v) / 100
-					end,
-					pattern = "%d",
-					order = 8
-				},
-]]
 				unit = {
 					name = L["Unit"], 
 					type = "input",
@@ -1079,7 +1065,7 @@ function AuraAlarm:WatchForAura(elapsed)
 	alarm.blinkTimer = (alarm.blinkTimer or 0) + elapsed
 	alarm.soundTimer = (alarm.soundTimer or 0) + elapsed
 
-	local units = {}
+	local units = new()
 
 	for i, v in pairs(self.obj.db.profile.auras) do
 		units[#units + 1] = v.unit or "player"
@@ -1089,26 +1075,13 @@ function AuraAlarm:WatchForAura(elapsed)
 		units[1] = "player"
 	end
 
-	local auras = {}
-	if not auras then
-		auras = {}
-	else
-		for k, aura in pairs(auras) do
-			delUnit(aura)
-			auras[k] = nil
-		end
-	end
+	local auras = new()
 
 	for _, unit in ipairs(units) do
 		
 		if not auras[unit] then
 			auras[unit] = newUnit() --{DEBUFF={}, BUFF={}}
 		end
-
-		del(auras[unit]['DEBUFF'])
-		del(auras[unit]['BUFF'])
-		auras[unit]['DEBUFF'] = new()
-		auras[unit]['BUFF'] = new()
 
 		for i = 1, 40 do
 			name, _, icon, count, _, _, expirationTime, _, _, _, id = UnitDebuff(unit, i)
@@ -1167,7 +1140,7 @@ function AuraAlarm:WatchForAura(elapsed)
 	if not self.background then self.background = LibFlash:New(self.obj.AAFrame) end
 	if not self.icon then self.icon = LibFlash:New(self.obj.AAIconFrame) end
 
-	self.fadeTime = self.fadeTime or .3
+	self.fadeTime = self.obj.db.profile.fadeTime or .3
 
 	if alarm.timer > (self.obj.db.profile.determined_rate or .4) then
 		local i = alarm.i
@@ -1207,6 +1180,12 @@ function AuraAlarm:WatchForAura(elapsed)
 			end
 			alarm.fallTimer = 0
 
+			if self.background.active then
+				self.background:Stop()
+			end
+			if self.icon.active then
+				self.icon:Stop()
+			end
 			if v.mode == 1 then -- Normal
 				local timer = 0
 				local goToSleep = function()
@@ -1220,7 +1199,7 @@ function AuraAlarm:WatchForAura(elapsed)
 
 				self.background:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, 0, 1)
 				if alarm.showIcon == nil or alarm.showIcon then
-					self.icon:Flash(self.fadeTime, self.fadeTime, 3 + self.fadeTime * 2, false, 0, 3, false, 0, goToSleep)
+					ret = self.icon:Flash(self.fadeTime, self.fadeTime, 3 + self.fadeTime * 2, false, 0, 3, false, 0, goToSleep)
 				end
 
 			elseif v.mode == 2 then -- Persist
@@ -1352,20 +1331,27 @@ function AuraAlarm:WatchForAura(elapsed)
 		activeAura = true
 	end
 
-	local restart = function()
-		refreshIcons()
+	local function restore()
 		clearCurrentAlarms()
+		refreshIcons()
 	end
 
-	if alarm.active and (alarm.fallTimer or 0xbeef) > (alarm.fallOff or 0xdead) or (not activeAura  and alarm.active) then
+	if alarm.active and alarm.fallTimer > (alarm.fallOff or 0xdead) or (not activeAura  and alarm.active) then
 		if alarm.wasPersist then
-			self.background:FadeOut(self.fadeTime, 1, 0, restart)
-			if alarm.showIcon == nil or alarm.showIcon then 
-				self.icon:FadeOut(self.fadeTime, 1, 0)
+			local ret = self.background:FadeOut(self.fadeTime, 1, 0, restore)
+			if not ret then 
+				self.background.frame:SetAlpha(0)
+				restore() 
 			end
+			if alarm.showIcon == nil or alarm.showIcon then 
+				ret = self.icon:FadeOut(self.fadeTime, 1, 0)
+				if not ret then
+					self.icon.frame:SetAlpha(0)
+				end
+			end
+			self.timer = self.timer - self.fadeTime * 2
 		else
-			refreshIcons()
-			clearCurrentAlarms()
+			restore()
 		end
 	end
 
@@ -1391,6 +1377,9 @@ function AuraAlarm:WatchForAura(elapsed)
 			delUnit(auras[unit])
 		end
 	end
+
+	del(auras)
+	del(units)
 end
 
 -- Normal mode
