@@ -310,9 +310,10 @@ function AuraAlarm:BuildAurasOpts()
 							self.opts.args.auras.args["Aura" .. tostring(k)].args.soundRate.disabled = true
 						end
 						self.db.profile.auras[k].mode = v
-						for k, v in pairs(self.AAWatchFrame.currentAlarms) do
-							v.active = false
-						end
+						clearCurrentAlarms()
+						--for k, v in pairs(self.AAWatchFrame.currentAlarms) do
+						--	v.active = false
+						--end
 					end,
 					values = alarmModes,
 					order = 4
@@ -448,7 +449,7 @@ function AuraAlarm:BuildAurasOpts()
 					func = function() 
 						table.remove(self.db.profile.auras, k) 
 						for i, v in ipairs(self.db.profile.sets) do
-							if self.db.profile.sets[i][k] then
+							if self.db.profile.sets[i][k] ~= nil then
 								table.remove(self.db.profile.sets[i], k)
 							end
 						end
