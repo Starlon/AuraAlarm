@@ -147,9 +147,15 @@ local function cleanup(frame, elapsed)
 end
 
 local function clearCurrentAlarms()
-	AuraAlarm.AAWatchFrame.background:Stop()
-	AuraAlarm.AAWatchFrame.icon:Stop()
-	del(AuraAlarm.AAWatchFrame.currentAlarms)
+	if AuraAlarm.AAWatchFrame.background then
+		AuraAlarm.AAWatchFrame.background:Stop()
+	end
+	if AuraAlarm.AAWatchFrame.icon then
+		AuraAlarm.AAWatchFrame.icon:Stop()
+	end
+	if AuraAlarm.AAWatchFrame.currentAlarms then
+		del(AuraAlarm.AAWatchFrame.currentAlarms)
+	end
 	AuraAlarm.AAWatchFrame.currentAlarms = nil
 	AuraAlarm.AAWatchFrame.current = nil
 end
@@ -775,7 +781,6 @@ function AuraAlarm:OnInitialize()
 						end,
 						set = function(info, v)
 							self.db.profile.currentSet = v
-							self:Print(v)
 							if not self.db.profile.sets[v] then
 								self.db.profile.sets[v] = new()
 							end
@@ -928,11 +933,6 @@ function AuraAlarm:OnInitialize()
 	refreshIcons()
 
 	local mode = supportModes[self.db.profile.mode or 1]
-
-	if self.db.profile.mode ~= NORML_MODE  then -- Determined
-		self.AAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
-	end
-	
 end
 
 function AuraAlarm:OnEnable()
@@ -1389,16 +1389,28 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 	if self.db.profile.mode ~= NORML_MODE then return end -- just in case
 
 	if (eventtype ~= "SPELL_AURA_APPLIED" and eventtype ~= "SPELL_AURA_REMOVED") then return end
+
+	if not self.background then self.background = LibFlash:New(self.AAFrame) end
+	if not self.icon then self.icon = LibFlash:New(self.AAIconFrame) end
+
+	local fadeTime = self.db.profile.fadeTime or .3
 	
 	for k, v in pairs(self.db.profile.auras) do
 		local aura = v
 		if aura_name == v.name and dst_name == UnitName(aura.unit or "player") then
 			
+			local current
+			local icon
 			local count
 			if aura_type == "DEBUFF" then 
-				count = select(4, UnitAura(aura.unit or "player", aura_name, "", "HARMFUL"))
+				current = new(UnitAura(aura.unit or "player", aura_name, "", "HARMFUL"))
+				icon = current[3]
+				count = current[4]
 			else
-				count = select(4, UnitAura(aura.unit or "player", aura_name, "", "HELPFUL"))
+				
+				current = new(UnitAura(aura.unit or "player", aura_name, "", "HELPFUL"))
+				icon = current[3]
+				count = current[4]
 			end
 			local isStacked = true
 			local stackText = ""
@@ -1413,6 +1425,11 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 
 			self.AAIconFrame.texts[v]:SetText(stackText)
 
+			self.AAIconFrame.icons[v]:SetTexture(icon)
+
+			self.AAIconFrame.icons[v]:SetPoint("LEFT", 10, 0)
+			self.AAIconFrame.texts[v]:SetPoint("LEFT", 24, 0)
+
 			if isStacked then
 				self.AAIconFrame:SetWidth(80)
 			else
@@ -1420,22 +1437,23 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 			end
 
 			if alarmModes[v.mode] == L["Flash Background"] and eventtype == "SPELL_AURA_APPLIED" and stackTest then
-				self.AAFrame:SetBackdropColor(v.color.r, v.color.g, v.color.b, v.color.a)
-				UIFrameFlash(self.AAFrame, .3, .3, 1.6, false, 0, 1) 
-				UIFrameFlash(self.AAIconFrame, .3, .3, 3.6, false, 0, 3)
+				self.AAFrame:SetBackdropColor(v.color.r / 255, v.color.g / 255, v.color.b / 255, self.db.profile.alpha.a / 255)
+				self.background:Flash(fadeTime, fadeTime, 1 + fadeTime * 2 , false, 0, 1)
+				if v.showIcon == nil or v.showIcon then
+					self.icon:Flash(fadeTime, fadeTime, 3 + fadeTime * 2, false, 0, 3)
+				end
 			elseif alarmModes[v.mode] == L["Persist"] then
 				if eventtype == "SPELL_AURA_APPLIED" and stackTest then
-					self.AAFrame:SetBackdropColor(v.color.r / 255, v.color.g / 255, v.color.b / 255, v.color.a / 255)
-					UIFrameFadeIn(self.AAFrame, .3, 0, 1)
-					if v.showIcon then
-						UIFrameFadeIn(self.AAIconFrame, .3, 0, 1)
+					self.AAFrame:SetBackdropColor(v.color.r  / 255, v.color.g / 255, v.color.b / 255, self.db.profile.alpha.a / 255)
+					self.background:FadeIn(.3, 0, 1)
+					if v.showIcon == nil or v.showIcon then
+						self.icon:FadeIn(fadeTime, 0, 1)
 					end
-					self.AAFrame:SetScript("OnUpdate", cleanup) -- all alarms have a hard timeout of 5 minutes before hiding the background frame
-					self.AAIconFrame:SetScript("OnUpdate", cleanup) -- this is because sometimes the combat log stops working
 				elseif stackTest then
-					UIFrameFadeOut(self.AAFrame, .3, 1, 0)
-					if v.showIcon then
-						UIFrameFadeOut(self.AAIconFrame, .3, 1, 0)
+					
+					self.background:FadeOut(fadeTime, 1, 0)
+					if v.showIcon == nil or v.showIcon then
+						self.icon:FadeOut(fadeTime, 1, 0)
 					end
 				end
 			end
@@ -1443,7 +1461,6 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 				if v.playSound then
 					PlaySoundFile(LSM:Fetch("sound", soundFiles[v.soundFile and getLSMIndexByName("sound", v.soundFile or "None") or 1]))
 				end
-				self.AAIconFrame.icons[v]:SetTexture(select(3, UnitAura(aura.unit or "player", aura_name, "", "HARMFUL")))
 			end
 			return
 		end
