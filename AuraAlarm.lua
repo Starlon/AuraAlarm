@@ -744,7 +744,7 @@ function AuraAlarm:OnInitialize()
 				order = 2,
 				args = {	
 					currentSet = {
-						name = L["Alarm Set"],
+						name = L["Current Set"],
 						desc = L["Which alarm set to use"],
 						type = 'select',
 						get = function()
