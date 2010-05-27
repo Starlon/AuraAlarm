@@ -1,3 +1,28 @@
+--[[
+ AuraAlarm -- Buff and debuff alerter.
+ 
+ Copyright (C) 2010 Scott Sibley
+
+ Authors: Scott Sibley
+
+ $Id$
+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as
+ published by the Free Software Foundation; either version 3
+ of the License, or (at your option) any later version.
+
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
+
+ You should have received a copy of the GNU Lesser General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+]]
+
+
 local _G = _G
 local pairs = _G.pairs
 
@@ -1170,10 +1195,11 @@ function AuraAlarm:WatchForAura(elapsed)
 
 		alarm.isStacked = isStacked
 
-		local stackTest = (isStacked and aura and aura.count == count) or not isStacked
+		local firstTest = count and count > 0 and v.count == 0 and not alarm.active
+		local secondTest = (isStacked and aura and aura.count == count) or not isStacked
 
 		local firstTime = false
-		if name and name == v.name and not alarm.active and not alarm.justResting and (isStacked and v.count == count or not isStacked) or (count and count > 0 and v.count == 0 and not alarm.active) then
+		if name and name == v.name and not alarm.active and not alarm.justResting and (firstTest or secondTest) then
 			alarm.fallOff = expirationTime - GetTime()
 			if alarm.fallOff < 0 then
 				alarm.fallOff = 0xdeadbeef
@@ -1186,6 +1212,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			if self.icon.active then
 				self.icon:Stop()
 			end
+			alarm.showIcon = v.showIcon == nil or v.showIcon
 			if v.mode == 1 then -- Normal
 				local timer = 0
 				local goToSleep = function()
@@ -1198,23 +1225,22 @@ function AuraAlarm:WatchForAura(elapsed)
 				end
 
 				self.background:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, 0, 1)
-				if alarm.showIcon == nil or alarm.showIcon then
+				if alarm.showIcon then
 					ret = self.icon:Flash(self.fadeTime, self.fadeTime, 3 + self.fadeTime * 2, false, 0, 3, false, 0, goToSleep)
 				end
 
 			elseif v.mode == 2 then -- Persist
 				self.background:FadeIn(self.fadeTime, 0, 1)
-				if v.showIcon == nil or v.showIcon then
+				if alarm.showIcon then
 					self.icon:FadeIn(self.fadeTime, 0, 1)
 				end
 				alarm.wasPersist = true
 			elseif v.mode == 3 then -- Blink
 				self.background:Flash(self.fadeTime, self.fadeTime, alarm.fallOff + self.fadeTime * 2, false, 0, alarm.fallOff, true, self.obj.db.profile.blinkRate)
-				if v.showIcon == nil or v.showIcon then
+				if alarm.showIcon then
 					self.icon:Flash(self.fadeTime, self.fadeTime, alarm.fallOff + self.fadeTime * 2, false, 0, alarm.fallOff, true, self.obj.db.profile.blinkRate)
 				end
 			end
-			alarm.showIcon = v.showIcon == nil or v.showIcon
 			alarm.active = true
 			firstTime = true
 			alarm.blinkTimer = 0
@@ -1232,28 +1258,8 @@ function AuraAlarm:WatchForAura(elapsed)
 
 
 			self.obj.AAIconFrame.texts[v]:SetText(stackText)
-
---			alarm.fallOff = expirationTime - GetTime()
---			if alarm.fallOff < 0 then
---				alarm.fallOff = 0xdeadbeef
---			end
-
---			alarm.fallTimer = 0
 		end
 
---[[		if name == (v.name or "") and alarm.blinkTimer > alarm.blinkRate and v.mode == tableFind(alarmModes, L["Blink"]) then
-			self.background:FadeOut(v.fadeTime, 1, 0)
-			if v.showIcon == nil or v.showIcon then
-				self.icon:FadeOut(v.fadeTime, 1, 0)
-			end
-			if alarm.fallTimer > alarm.fallOff then
-				alarm.fallTimer = 0
-			end	
-			alarm.firstSound = false
-			alarm.active = false
-			alarm.blinkTimer = 0
-		end
-]]			
 		local pos, width = 0, 0
 		for k, v in pairs(self.currentAlarms) do
 			self.obj.AAIconFrame.icons[k]:ClearAllPoints()
