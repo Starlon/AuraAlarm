@@ -1173,7 +1173,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		local stackTest = (isStacked and aura and aura.count == count) or not isStacked
 
 		local firstTime = false
-		if name and name == v.name and not alarm.active and not alarm.justResting and (isStacked and v.count == count or not isStacked) then
+		if name and name == v.name and not alarm.active and not alarm.justResting and (isStacked and v.count == count or not isStacked) or (count and count > 0 and v.count == 0 and not alarm.active) then
 			alarm.fallOff = expirationTime - GetTime()
 			if alarm.fallOff < 0 then
 				alarm.fallOff = 0xdeadbeef
