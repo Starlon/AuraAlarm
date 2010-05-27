@@ -1,7 +1,9 @@
 --[[
  AuraAlarm -- Buff and debuff alerter.
  
- Copyright (C) 2010 Scott Sibley
+ Copyright (C) 2010 Scott Sibley <starlon@users.sourceforge.net>
+ Layering design and associated algorithm borrowed from LCD4Linux.
+ Copyright (C) 2004 The LCD4Linux Team <lcd4linux-devel@users.sourceforge.net>
 
  Authors: Scott Sibley
 
