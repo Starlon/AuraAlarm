@@ -35,8 +35,6 @@ _G.AuraAlarm = LibStub("AceAddon-3.0"):NewAddon("AuraAlarm", "AceConsole-3.0", "
 
 local AuraAlarm = _G.AuraAlarm
 
-AuraAlarm.hasIcon = true
-
 AuraAlarm.AAFrame = CreateFrame("Frame", "AAFrame", UIParent)
 AuraAlarm.AAIconFrame = CreateFrame("Frame", "AAIconFrame", UIParent)
 AuraAlarm.AAWatchFrame = CreateFrame("Frame")
@@ -212,7 +210,7 @@ end
 
 local newIcon, delIcon
 do
-	local pool = {} --setmetatable({}, {__mode='k'})
+	local pool = {}
 	newIcon = function(frame)
 		if not frame or type(frame) ~= "table" then error("Argument passed is invalid, expected a table.") end
 		local t = next(pool)
@@ -1289,10 +1287,6 @@ function AuraAlarm:WatchForAura(elapsed)
 		local c = self.obj.db.profile.alpha
 		local r, g, b, a = c.r, c.g, c.b, c.a
 		local o = self.obj.db.profile.layers or 2
-
-		for l = 1, self.obj.db.profile.layers or 2 do
-			
-		end
 
 		local o = self.obj.db.profile.layers or 2
 		for l = 1, self.obj.db.profile.layers or 2 do
