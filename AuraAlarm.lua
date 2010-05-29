@@ -849,6 +849,18 @@ function AuraAlarm:OnInitialize()
 						end,
 						order = 2
 					},
+					target = {
+						name = L["Target"],
+						desc = L["Change to this set when I target <name>"],
+						type = 'input',
+						get = function()
+							return self.db.profile.sets[self.db.profile.currentSet].target
+						end,
+						set = function(info, v)
+							self.db.profile.sets[self.db.profile.currentSet].target = v
+						end,
+						order = 3
+					},
 					saveSet = {
 						name = L["Save Set"],
 						type  = "execute",
@@ -865,7 +877,7 @@ function AuraAlarm:OnInitialize()
 							refreshIcons()
 							self:Print(L["Set saved."])
 						end,
-						order = 3
+						order = 99
 					},
 					deleteSet = {
 						name = L["Delete Set"],
@@ -888,8 +900,8 @@ function AuraAlarm:OnInitialize()
 							refreshIcons()
 							applySet()
 						end,
-						order = 4
-					},
+						order = 100
+					}
 				}
 			}
 		}
@@ -961,12 +973,9 @@ function AuraAlarm:OnInitialize()
 end
 
 function AuraAlarm:OnEnable()
-	self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+	self:RegisterEvent("PLAYER_TARGET_CHANGED")
 	self.AAFrame:SetBackdropColor(0, 0, 0, 0)
 	self.AAFrame:Show()
-	if self.db.profile.mode ~= NORML_MODE then	
-		self.AAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
-	end
 	self.AAIconFrame:SetAlpha(0)
 	self.AAIconFrame:Show()
 	self:ChangeMode(self.db.profile.mode or 1)
@@ -976,10 +985,28 @@ function AuraAlarm:OnDisable()
 	if self:IsEventRegistered("COMBAT_LOG_EVENT_UNFILTERED") then 
 		self:UnregisterEvent("COMBAT_LOG_EVENT_UNFILTERED") 
 	end
+	if self:IsEventRegistered("PLAYER_TARGET_CHANGED") then
+		self:UnregisterEvent("PLAYER_TARGET_CHANGED")
+	end
 	self.AAFrame:Hide()
 	self.AAWatchFrame:SetScript("OnUpdate", nil)
 	self.AAIconFrame:Hide()
 	self:ChangeMode(1)
+end
+
+function AuraAlarm:PLAYER_TARGET_CHANGED()
+	local name = UnitName("target")
+
+	if not name then return end
+
+	for i, v in ipairs(self.db.profile.sets) do
+		if (v.target == name and self.db.profile.currentSet ~= i) or (v.target == name and self.db.profile.currentSet == nil and i == 1) then
+			self.db.profile.currentSet = i
+			applySet()
+			clearCurrentAlarms()
+			return
+		end
+	end
 end
 
 local function findByIndex(tbl, i)
@@ -1050,7 +1077,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		end
 	end
 
-	if self.count == 0 then
+	if not self.count or self.count == 0 then
 		return
 	end
 
@@ -1491,6 +1518,7 @@ function AuraAlarm:ChangeMode(v)
 end
 
 function AuraAlarm:AddAuraUnderMouse()
+	do return end
 	local scannedText = GameTooltipTextLeft1:GetText()
 	local i = 1
 	while true do

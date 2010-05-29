@@ -114,4 +114,5 @@ L["Memory"] = true
 L["Troubleshooting"] = true
 L["Toggle enabled off or on for each alarm. Enter a name for this set."] = true
 L["Set saved."] = true
-
+L["Target"] = true
+L["Change to this set when I target <name>"] = true
