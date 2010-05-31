@@ -75,8 +75,6 @@ local supportModes = {L["Normal"], L["Determined"]}
 
 local NORML_MODE, DETERMINED_MODE = 1, 2
 
-local alarmSets = {L["Default"]}
-
 local FADE_IN, FADE_OUT = 1, 2
 
 local new, del, newDict
@@ -597,6 +595,23 @@ function AuraAlarm:OnInitialize()
 
 	self.db = LibStub("AceDB-3.0"):New("AuraAlarmDB")
 	
+	self.db:RegisterDefaults({
+		profile = {
+			auras = {},
+			sets = {{name=L["Default"]}},
+			currentSet = 1,
+			x = 0,
+			y = 0,
+			alpha = {r = 0, g = 0, b = 0, a = 0.4 * 255}
+		}
+	})
+
+	self.alarmSets = {L["Default"]}
+
+	for i, v in ipairs(self.db.profile.sets) do
+		self.alarmSets[i] = v.name
+	end
+
 	local opts = { 
 		type = 'group',
 		args = {
@@ -829,7 +844,7 @@ function AuraAlarm:OnInitialize()
 							refreshIcons()
 							applySet()
 						end,
-						values = alarmSets,
+						values = self.alarmSets,
 						order = 1
 					},
 					createSet = {
@@ -847,9 +862,9 @@ function AuraAlarm:OnInitialize()
 								set.alarms[#set.alarms + 1] = v.enabled == nil or v.enabled
 							end
 							
-							alarmSets[#alarmSets + 1] = set.name
+							self.alarmSets[#self.alarmSets + 1] = set.name
 		
-							self.db.profile.currentSet = #alarmSets
+							self.db.profile.currentSet = #self.alarmSets
 							clearCurrentAlarms()
 							refreshIcons()
 						end,
@@ -900,7 +915,7 @@ function AuraAlarm:OnInitialize()
 							del(set)
 
 							table.remove(self.db.profile.sets, self.db.profile.currentSet)
-							table.remove(alarmSets, self.db.profile.currentSet)
+							table.remove(self.alarmSets, self.db.profile.currentSet)
 							self.db.profile.currentSet = 1
 							clearCurrentAlarms()
 							refreshIcons()
@@ -932,12 +947,6 @@ function AuraAlarm:OnInitialize()
 		}
 	})
 
-	for i, v in ipairs(self.db.profile.sets) do
-		alarmSets[i] = v.name or L["Default"]
-	end
-
-	applySet()
-	
 	self.capturedAuras = {}
 	self:BuildAurasOpts()	
 	
