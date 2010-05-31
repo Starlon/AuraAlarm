@@ -181,6 +181,12 @@ local function clearCurrentAlarms()
 	if AuraAlarm.AAWatchFrame.currentAlarms then
 		del(AuraAlarm.AAWatchFrame.currentAlarms)
 	end
+	for k, v in pairs(AuraAlarm.AAWatchFrame.currentAlarms) do
+		del(v)
+	end
+
+	del(AuraAlarm.AAWatchFrame.currentAlarms)
+
 	AuraAlarm.AAWatchFrame.currentAlarms = nil
 	AuraAlarm.AAWatchFrame.current = nil
 end
@@ -658,7 +664,7 @@ function AuraAlarm:OnInitialize()
 						order = 4
 					},
 					mode = {
-						name = L["Support Mode"],
+						name = L["Operation Mode"],
 						desc = L["Use 'Determined' for events that don't show up in the combat log."],
 						type = "select",
 						values = supportModes,
@@ -1049,6 +1055,7 @@ end
 function AuraAlarm:WatchForAura(elapsed)
 	self.timer = (self.timer or 0) + elapsed
 	self.gcTimer = (self.gcTimer or 0) + elapsed
+
 	local showIcon
 	local name, icon, count, expirationTime, id, _
 
@@ -1093,7 +1100,7 @@ function AuraAlarm:WatchForAura(elapsed)
 	self.timer = 0
 
 	if self.obj.db.profile.garbageCollect and self.gcTimer > (self.obj.db.profile.gcRate or 100) then
-		if self.obj.db.profile.garbageCollect and not InCombatLockdown() then
+		if not InCombatLockdown() then
 			collectgarbage()
 		end
 		self.gcTimer = 0
@@ -1294,15 +1301,13 @@ function AuraAlarm:WatchForAura(elapsed)
 			if v.showIcon and v.active and not v.justResting then
 
 				local x = pos * 44
+
+				pos = pos + 1
 				
 				self.obj.AAIconFrame.icons[k]:SetPoint("LEFT", x + 10, 0) 
 				self.obj.AAIconFrame.texts[k]:SetPoint("LEFT", x + 34, 0)
-				pos = pos + 1
-				if v.count == 0 then
-					width = width + 44
-				else
-					width = width + 54
-				end
+
+				width = width + 44
 
 			elseif v.showIcon and not v.active or v.justResting then
 				self.obj.AAIconFrame.icons[k]:SetTexture(nil)
@@ -1315,7 +1320,6 @@ function AuraAlarm:WatchForAura(elapsed)
 		local r, g, b, a = c.r, c.g, c.b, c.a
 		local o = self.obj.db.profile.layers or 2
 
-		local o = self.obj.db.profile.layers or 2
 		for l = 1, self.obj.db.profile.layers or 2 do
 			for k, v in pairs(self.currentAlarms) do
 				local p = k.color	
@@ -1335,16 +1339,16 @@ function AuraAlarm:WatchForAura(elapsed)
 							g = p.g
 							b = p.b
 						elseif p.a > 0 then
-							r = (p.r * p.a + round(r) * (255 - p.a)) / 255
-							g = (p.g * p.a + round(g) * (255 - p.a)) / 255
-							b = (p.b * p.a + round(b) * (255 - p.a)) / 255
+							r = (p.r * p.a + r * (255 - p.a)) / 255
+							g = (p.g * p.a + g * (255 - p.a)) / 255
+							b = (p.b * p.a + b * (255 - p.a)) / 255
 						end
 					end
 				end
 			end
 		end
 
-		self.obj.AAFrame:SetBackdropColor(round(r) / 255, round(g) / 255, round(b) / 255, round(a) / 255)
+		self.obj.AAFrame:SetBackdropColor(r / 255, g / 255, b / 255, a / 255)
 
 		alarm.timer = 0
 	end
@@ -1396,19 +1400,12 @@ function AuraAlarm:WatchForAura(elapsed)
 		self.obj.AAFrame:SetAlpha(0)
 	end 
 
-	for unit in pairs(units) do
-		if auras[unit] and auras[unit]['DEBUFF'] then
-			del(auras[unit]['DEBUFF'])
-			delUnit(auras[unit])
-		end
-		if auras[unit] and auras[unit]['BUFF'] then
-			del(auras[unit]['BUFF'])
-			delUnit(auras[unit])
-		end
+	for _, unit in ipairs(units) do
+		delUnit(auras[unit])
 	end
 
-	del(auras)
 	del(units)
+	del(auras)
 end
 
 -- Normal mode
