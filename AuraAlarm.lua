@@ -1244,18 +1244,23 @@ function AuraAlarm:WatchForAura(elapsed)
 		local firstTime = false
 		if name and name == v.name and not alarm.active and not alarm.justResting and (firstTest or secondTest) then
 			alarm.fallOff = expirationTime - GetTime()
+
 			if alarm.fallOff < 0 then
 				alarm.fallOff = 0xdeadbeef
 			end
+
 			alarm.fallTimer = 0
 
 			if self.background.active then
 				self.background:Stop()
 			end
+
 			if self.icon.active then
 				self.icon:Stop()
 			end
+
 			alarm.showIcon = v.showIcon == nil or v.showIcon
+
 			if v.mode == 1 then -- Normal
 				local timer = 0
 				local goToSleep = function()
@@ -1269,7 +1274,7 @@ function AuraAlarm:WatchForAura(elapsed)
 
 				self.background:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, 0, 1)
 				if alarm.showIcon then
-					ret = self.icon:Flash(self.fadeTime, self.fadeTime, 3 + self.fadeTime * 2, false, 0, 3, false, 0, goToSleep)
+					self.icon:Flash(self.fadeTime, self.fadeTime, 3 + self.fadeTime * 2, false, 0, 3, false, 0, goToSleep)
 				end
 
 			elseif v.mode == 2 then -- Persist
