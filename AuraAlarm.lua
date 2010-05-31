@@ -849,7 +849,7 @@ function AuraAlarm:OnInitialize()
 					},
 					createSet = {
 						name = L["Create a Set"],
-						desc = L["Toggle enabled off or on for each alarm. Enter a name for this set."],
+						desc = L["Enter a name for this set."],
 						type = 'input',
 						get = function()
 						end,
