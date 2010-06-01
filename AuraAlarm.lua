@@ -1272,9 +1272,9 @@ function AuraAlarm:WatchForAura(elapsed)
 					end
 				end
 
-				self.background:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, 0, 1, goToSleep)
+				self.background:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, 0, 1, false, 0, goToSleep)
 				if alarm.showIcon then
-					self.icon:Flash(self.fadeTime, self.fadeTime, 3 + self.fadeTime * 2, false, 0, 3, false, 0)
+					self.icon:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, 0, 1)
 				end
 
 			elseif v.mode == 2 then -- Persist
