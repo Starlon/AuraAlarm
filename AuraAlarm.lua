@@ -1238,8 +1238,8 @@ function AuraAlarm:WatchForAura(elapsed)
 
 		alarm.isStacked = isStacked
 
-		local firstTest = count and count > 0 and v.count == 0 and not alarm.active
-		local secondTest = (isStacked and aura and aura.count == count) or not isStacked
+		local firstTest = count and count > 0 and (v.count == 0 or v.count == nil)
+		local secondTest = (isStacked and self.current.count == count) or not isStacked
 
 		local firstTime = false
 		if name and name == v.name and not alarm.active and not alarm.justResting and (firstTest or secondTest) then
@@ -1321,7 +1321,11 @@ function AuraAlarm:WatchForAura(elapsed)
 				self.obj.AAIconFrame.icons[k]:SetPoint("LEFT", x + 10, 0) 
 				self.obj.AAIconFrame.texts[k]:SetPoint("LEFT", x + 34, 0)
 
-				width = width + 44
+				if v.count and v.count > 0 then
+					width = width + 54
+				else
+					width = width + 44
+				end
 
 			elseif v.showIcon and not v.active or v.justResting then
 				self.obj.AAIconFrame.icons[k]:SetTexture(nil)
