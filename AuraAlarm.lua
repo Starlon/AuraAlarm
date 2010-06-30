@@ -179,11 +179,14 @@ local function clearCurrentAlarms()
 	if AuraAlarm.AAWatchFrame.currentAlarms then
 		del(AuraAlarm.AAWatchFrame.currentAlarms)
 	end
-	for k, v in pairs(AuraAlarm.AAWatchFrame.currentAlarms) do
-		del(v)
-	end
+	
+	if AuraAlarm.AAWatchFrame.currentAlarms then
+		for k, v in pairs(AuraAlarm.AAWatchFrame.currentAlarms) do
+			del(v)
+		end
 
-	del(AuraAlarm.AAWatchFrame.currentAlarms)
+		del(AuraAlarm.AAWatchFrame.currentAlarms)
+	end
 
 	AuraAlarm.AAWatchFrame.currentAlarms = nil
 	AuraAlarm.AAWatchFrame.current = nil
@@ -526,6 +529,9 @@ function AuraAlarm:BuildAurasOpts()
 				set = function(info, v) 
 					self.db.profile.auras[#self.db.profile.auras+1] = {name=v, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, fadeTime=.1, active=true} 
 					for i, set in ipairs(self.db.profile.sets) do
+						if not set.alarms then
+							set.alarms = new()
+						end
 						set.alarms[#set.alarms + 1] = true
 					end
 					self:BuildAurasOpts() 
@@ -572,6 +578,9 @@ function AuraAlarm:BuildAurasOpts()
 				self:BuildAurasOpts()
 
 				for i, set in ipairs(self.db.profile.sets) do
+					if not set.alarms then
+						set.alarms = new()
+					end
 					set.alarms[#set.alarms + 1] = true
 				end
 
@@ -836,6 +845,7 @@ function AuraAlarm:OnInitialize()
 									if set.alarms then
 										v.enabled = set.alarms[i] == nil or set.alarms[i]
 									else
+										set.alarms = new()
 										v.enabled = true
 									end
 								end
@@ -939,7 +949,7 @@ function AuraAlarm:OnInitialize()
 	self.db:RegisterDefaults({
 		profile = {
 			auras = {},
-			sets = {{name=L["Default"]}},
+			sets = {{name=L["Default"]}, alarms=new()},
 			currentSet = 1,
 			x = 0,
 			y = 0,
