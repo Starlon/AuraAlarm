@@ -33,6 +33,8 @@ BINDING_NAME_ADDAURA = "Add Aura";
 
 _G.AuraAlarm = LibStub("AceAddon-3.0"):NewAddon("AuraAlarm", "AceConsole-3.0", "AceEvent-3.0")
 
+local LibFlash = LibStub("LibFlash")
+
 local AuraAlarm = _G.AuraAlarm
 
 AuraAlarm.AAFrame = CreateFrame("Frame", "AAFrame", UIParent)
