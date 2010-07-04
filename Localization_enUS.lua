@@ -117,3 +117,7 @@ L["Set saved."] = true
 L["Target"] = true
 L["Change to this set when I target <name>"] = true
 L["Usage: /auraalarm getset Default"] = true
+L["Aura ID"] = true
+L["<Aura ID here>"] = true
+L["ID for Aura"] = true
+
