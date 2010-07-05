@@ -121,4 +121,6 @@ L["Aura ID"] = true
 L["<Aura ID here>"] = true
 L["ID for Aura"] = true
 L["Profiles"] = true
+L["Share"] = true
+L["Share this alarm with a player"] = true
 

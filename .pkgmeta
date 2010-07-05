@@ -36,6 +36,14 @@ externals:
     Lib/AceTab-3.0: 
         url: svn://svn.wowace.com/wow/ace3/mainline/trunk/AceTab-3.0
         tag: latest
+		
+	Lib/AceComm-3.0:
+		url: svn://svn.wowace.com/wow/ace3/mainline/trunk/AceComm-3.0
+		tag: latest
+		
+	Lib/AceSerializer-3.0:
+		url: svn://svn.wowace.com/wow/ace3/mainline/trunk/AceSerializer-3.0
+		tag: latest
         
     Lib/LibStub: 
         url: svn://svn.wowace.com/wow/ace3/mainline/trunk/LibStub
@@ -44,23 +52,15 @@ externals:
     Lib/AceDBOptions-3.0: 
         url: svn://svn.wowace.com/wow/ace3/mainline/trunk/AceDBOptions-3.0
         tag: latest
-        
-    Lib/LibSharedMedia-3.0: 
-        url: svn://svn.wowace.com/wow/libsharedmedia-3-0/mainline/trunk/LibSharedMedia-3.0
-        tag: latest
-        
-    Lib/AceSerializer-3.0: 
-        url: svn://svn.wowace.com/wow/ace3/mainline/trunk/AceSerializer-3.0
-        tag: latest
-        
+
     Lib/AceTimer-3.0: 
         url: svn://svn.wowace.com/wow/ace3/mainline/trunk/AceTimer-3.0
         tag: latest
-        
-    Lib/AceComm-3.0: 
-        url: svn://svn.wowace.com/wow/ace3/mainline/trunk/AceComm-3.0
+       
+    Lib/LibSharedMedia-3.0: 
+        url: svn://svn.wowace.com/wow/libsharedmedia-3-0/mainline/trunk/LibSharedMedia-3.0
         tag: latest
-        
+
     Lib/CallbackHandler-1.0: 
         url: svn://svn.wowace.com/wow/ace3/mainline/trunk/CallbackHandler-1.0
         tag: latest

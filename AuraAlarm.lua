@@ -27,11 +27,14 @@
 
 local _G = _G
 local pairs = _G.pairs
+local ipairs = _G.ipairs
 
-BINDING_HEADER_AURAALARM = "AuraAlarm";
-BINDING_NAME_ADDAURA = "Add Aura";
+BINDING_HEADER_AURAALARM = "AuraAlarm"
+BINDING_NAME_ADDAURA = "Add Aura"
 
-_G.AuraAlarm = LibStub("AceAddon-3.0"):NewAddon("AuraAlarm", "AceConsole-3.0", "AceEvent-3.0")
+local prefix = "AuraAlarmCOMM"
+
+_G.AuraAlarm = LibStub("AceAddon-3.0"):NewAddon("AuraAlarm", "AceConsole-3.0", "AceEvent-3.0", "AceComm-3.0", "AceSerializer-3.0")
 
 local LibFlash = LibStub("LibFlash")
 
@@ -65,7 +68,7 @@ LSM:Register("sound", "Netherstorm", [[Sound\Doodad\NetherstormCrackLighting01.w
 
 local soundFiles = LSM:List("sound") 
 
-local alarmModes = {L["Flash Background"], L["Persist"], L["Blink"]}
+local alarmModes = {L["Flash Once"], L["Persist"], L["Blink"]}
 
 local FLASH_MODE, PERSIST_MODE, BLINK_MODE = 1, 2, 3
 
@@ -548,6 +551,17 @@ function AuraAlarm:BuildAurasOpts()
 					end,
 					order = 16
 				},
+				share = {
+					name = L["Share"],
+					desc = L["Share this alarm with a player"],
+					type = "input",
+					set = function(info, v)
+						local msg = self:Serialize(self.db.profile.auras[k])
+						self:SendCommMessage(prefix, msg, "WHISPER", v)
+						self:Print(string.format(L["Alarm shared with %s."], v))
+					end,
+					order = 17
+				},
 				remove = {
 					name = L["Remove"],
 					type = 'execute',
@@ -652,6 +666,215 @@ function AuraAlarm:BuildAurasOpts()
 		end
 	end
 
+end
+
+function AuraAlarm:RebuildReceivedAlarms()
+	if self.opts.args.received then
+		self.opts.args.received = {name = L["Received Alarms"],
+								type = "group",
+								desc = L["Someone shared these alarms with you"],
+								args = {},
+								order = 3}
+	end
+	
+	del(self.opts.args.received.args)
+	self.opts.args.received.args = new()
+	
+	for k, v in ipairs(self.receivedAlarms) do
+		self.opts.args.received.args["Aura"..tostring(k)] = {
+			name = v.name,
+			type = "group",
+			order = k,
+			args = {
+				sender = {
+					name = L["Sender"],
+					desc = L["This player sent this alarm to you"],
+					type = "input",
+					get = function()
+						return v.sender
+					end,
+					enabled = false,
+					order = 1
+				},
+				aura_name = {
+					name = L["Aura Name"],
+					type = 'input',
+					usage = L["<Aura name here>"],
+					desc = L["Name for Aura"] .. tostring(k),
+					get = function() return v.name end,
+					set = function(info, val)
+						v.name = val
+					end,
+					order=2
+				},
+				aura_id = {
+					name = L["Aura ID"],
+					type = 'input',
+					usage = L["<Aura ID here>"],
+					desc = L["ID for Aura"] .. tostring(k),
+					get = function()
+						return v.id
+					end,
+					enabled = false,
+					order=2
+				},
+				type = {
+					name = L["Type"],
+					desc = "AuraType",
+					type = "select",
+					values = auraTypes,
+					get = function()
+						return v.type or 1
+					end,
+					enabled = false,
+					order=3
+				},
+				color = {
+					name = L["Color"],
+					type = 'color',
+					desc = L["Change the flash color"],
+					get = function()
+						return v.color.r / 255, v.color.g / 255, v.color.b / 255, v.color.a / 255
+					end,
+					set = function(info, r, g, b, a)
+						v.color.r, v.color.g, v.color.b, v.color.a = r * 255, g * 255, b * 255, a * 255
+					end,
+					hasAlpha = true,
+					order = 4
+				},
+				mode = {
+					name = L["Mode"],
+					type = "select",
+					desc = L["Alarm mode"],
+					get = function()
+						return v.mode or 1
+					end,
+					set = function(info, v)
+						v.mode = val
+					end,
+					values = alarmModes,
+					order = 5
+				},
+				soundFile = {
+					name = L["Warning Sound"],
+					type = "select",
+					desc = L["Sound to play"],
+					get = function()
+						return tableFind(LSM:List("sound"), v.soundFile or "None")
+					end,
+					set = function(info, val)
+						PlaySoundFile(LSM:Fetch("sound", soundFiles[val]))
+						v.soundFile = soundFiles[val]
+					end,
+					values = soundFiles,
+					order = 6
+				},
+				soundPersist = {
+					name = L["Persisting Sound"],
+					type = "toggle",
+					desc = L["Toggle repeating sound throughout aura. This only pertains to Persist Mode."],
+					get = function()
+						return self.db.profile.auras[k].soundPersist
+					end,
+					set = function(info, v)
+						v.soundPersist = v
+					end,
+					order = 7
+				},
+				soundRate = {
+					name = L["Sound Rate"],
+					type = "input",
+					desc = L["Rate at which Persisting Sound will fire. This is in milliseconds."],
+					get = function()
+						return tostring(v.soundRate or 3)
+					end,
+					set = function(info, val)
+						v.soundRate = tonumber(val)
+					end,
+					pattern = "%d",
+					order = 8
+				},
+				unit = {
+					name = L["Unit"], 
+					type = "input",
+					get = function()
+						return v.unit or "player"
+					end,
+					set = function(info, val)
+						v.unit = val
+					end,
+					order = 9
+				},
+				count = {
+					name = L["Stacks"],
+					desc = L["0 means do not consider stack count."],
+					type = "input",
+					get = function()
+						return tostring(v.count or 0)
+					end,
+					set = function(info, val)
+						v.count = tonumber(val)
+					end,
+					pattern = "%d",
+					order = 10
+				},
+				showIcon = {
+					name = L["Show Icon"],
+					desc = L["Show icon frame"],
+					type = "toggle",
+					get = function()
+						local showIcon = v.showIcon
+						return showIcon == nil or showIcon == true
+					end,
+					set = function(info, val)
+						v.showIcon = val
+					end,
+					order=12
+				},
+				layer = {
+					name = L["Layer"],
+					desc = L["This alarm's layer"],
+					type = 'input',
+					get = function() 
+						return tostring(v.layer or 1)
+					end,
+					set = function(info, val)
+						v.layer = tonumber(val)
+					end,
+					pattern = "%d",
+					order = 15
+
+				},
+				enabled = {
+					name = L["Enabled"],
+					desc = L["Whether this alarm is enabled"],
+					type = "toggle",
+					get = function()
+						return v.enabled == nil or v.enabled
+					end,
+					set = function(info, val)
+						v.enabled = val
+					end,
+					order = 16
+				},
+				add = {
+					name = L["Add"],
+					type = 'execute',
+					desc = L["Add this alarm"],
+					func = function() 
+						tinsert(self.db.profile.auras, v)
+						table.remove(self.receivedAlarms, k)
+						self:BuildAurasOpts() 
+						self:Print(L["Received alarm added."]) 
+						clearCurrentAlarms()
+						refreshIcons()
+						self:RebuildReceivedAlarms()
+					end,
+					order=100
+				}				
+			}
+		}
+	end
 end
 
 function AuraAlarm:OnInitialize()	
@@ -1045,8 +1268,18 @@ function AuraAlarm:OnInitialize()
 	self.AAIconFrame:SetBackdropBorderColor(0, 0, 0, 1)
 
 	refreshIcons()
+	
+	self:RegisterComm(prefix)
+end
 
-	local mode = supportModes[self.db.profile.mode or 1]
+function AuraAlarm:OnCommReceived(prefix, message, distribution, sender)
+	local _, alarm = self:Deserialize(message)
+	alarm.sender = sender
+	if not self.receivedAlarms then
+		self.receivedAlarms = new()
+	end
+	tinsert(self.receivedAlarms, alarm)
+	self:RebuildReceivedAlarms()
 end
 
 function AuraAlarm:OnEnable()
@@ -1569,7 +1802,7 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 				self.AAIconFrame:SetWidth(44)
 			end
 
-			if alarmModes[v.mode] == L["Flash Background"] and eventtype == "SPELL_AURA_APPLIED" and stackTest then
+			if alarmModes[v.mode] == L["Flash Once"] and eventtype == "SPELL_AURA_APPLIED" and stackTest then
 				self.AAFrame:SetBackdropColor(v.color.r / 255, v.color.g / 255, v.color.b / 255, self.db.profile.alpha.a / 255)
 				self.background:Flash(fadeTime, fadeTime, 1 + fadeTime * 2 , false, 0, 1)
 				if v.showIcon == nil or v.showIcon then

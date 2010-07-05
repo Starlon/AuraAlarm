@@ -10,7 +10,10 @@
 <Script file="Lib\AceConsole-3.0\AceConsole-3.0.lua"/>
 <Include file="Lib\AceGUI-3.0\AceGUI-3.0.xml"/>
 <Include file="Lib\AceConfig-3.0\AceConfig-3.0.xml"/>
+<Include file="Lib\AceComm-3.0\AceComm-3.0.xml"/>
+<Include file="Lib\AceSerializer-3.0\AceSerializer-3.0.xml"/>
 <Script file="Lib\LibSharedMedia-3.0\LibSharedMedia-3.0.lua"/>
+<Include file="Lib\AceDBOptions-3.0\AceDBOptions-3.0.xml"/>
 <Script file="Lib\LibFlash\LibFlash.lua"/>
 
 </Ui>
