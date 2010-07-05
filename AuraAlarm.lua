@@ -82,6 +82,8 @@ local NORML_MODE, DETERMINED_MODE = 1, 2
 
 local FADE_IN, FADE_OUT = 1, 2
 
+local alarmList = {}
+
 local new, del, newDict
 do
 	local pool = setmetatable({},{__mode='k'})
@@ -339,7 +341,17 @@ function commandHandler(data)
 end
 
 function AuraAlarm:BuildAurasOpts()
-	self.opts.args.auras.args = {}
+	if self.opts.args.auras.args then
+		del(self.opts.args.auras.args)
+	end
+	self.opts.args.auras.args = new()
+	
+	del(alarmList)
+	alarmList = new()
+	for k, v in ipairs(self.db.profile.auras) do
+		tinsert(alarmList, v.name)
+	end
+	
 	for k,v in ipairs(self.db.profile.auras) do
 		self.opts.args.auras.args["Aura" .. tostring(k)] = {
 			name = v.name,
@@ -524,6 +536,18 @@ function AuraAlarm:BuildAurasOpts()
 					end,
 					order=12
 				},
+				precision = {
+					name = L["Duration Precision"],
+					type = "select",
+					values = {L["In Seconds"], L["Single Decimal"]},
+					get = function()
+						return self.db.profile.auras[k].precision or 1
+					end,
+					set = function(info, v)
+						self.db.profile.auras[k].precision = v
+					end,
+					order = 15
+				},
 				layer = {
 					name = L["Layer"],
 					desc = L["This alarm's layer"],
@@ -535,7 +559,7 @@ function AuraAlarm:BuildAurasOpts()
 						self.db.profile.auras[k].layer = tonumber(v)
 					end,
 					pattern = "%d",
-					order = 15
+					order = 16
 
 				},
 				enabled = {
@@ -549,7 +573,31 @@ function AuraAlarm:BuildAurasOpts()
 						self.db.profile.auras[k].enabled = v
 						clearCurrentAlarms()
 					end,
-					order = 16
+					order = 17
+				},
+				copy = {
+					name = L["Copy"],
+					desc = L["Copy an alarm's settings"],
+					type = "select",
+					values = alarmList,
+					set = function(info, v)
+						local alarm = self.db.profile.auras[v]
+						self.db.profile.auras[k].color.r = alarm.color.r
+						self.db.profile.auras[k].color.g = alarm.color.g
+						self.db.profile.auras[k].color.b = alarm.color.b
+						self.db.profile.auras[k].color.a = alarm.color.a
+						self.db.profile.auras[k].mode = alarm.mode
+						self.db.profile.auras[k].soundFile = alarm.soundFile
+						self.db.profile.auras[k].soundPersist = alarm.soundPersist
+						self.db.profile.auras[k].soundRate = alarm.soundRate
+						self.db.profile.auras[k].showIcon = alarm.showIcon
+						self.db.profile.auras[k].layer = alarm.layer
+						clearCurrentAlarms()
+						refreshIcons()
+						self:BuildAurasOpts()
+						self:Print(L["Alarm copied."])
+					end,
+					order = 18
 				},
 				share = {
 					name = L["Share"],
@@ -560,7 +608,7 @@ function AuraAlarm:BuildAurasOpts()
 						self:SendCommMessage(prefix, msg, "WHISPER", v)
 						self:Print(string.format(L["Alarm shared with %s."], v))
 					end,
-					order = 17
+					order = 19
 				},
 				remove = {
 					name = L["Remove"],
@@ -576,7 +624,7 @@ function AuraAlarm:BuildAurasOpts()
 						self:BuildAurasOpts() 
 						self:Print(L["Aura removed."]) 
 						clearCurrentAlarms()
-						refreshIcons()
+						refreshIcons()						
 					end,
 					order=100
 				}				
@@ -601,7 +649,7 @@ function AuraAlarm:BuildAurasOpts()
 							set.alarms = new()
 						end
 						set.alarms[#set.alarms + 1] = true
-					end
+					end					
 					self:BuildAurasOpts() 
 					self:Print(L["%s added."]:format(v)) 
 					clearCurrentAlarms()
@@ -669,7 +717,7 @@ function AuraAlarm:BuildAurasOpts()
 end
 
 function AuraAlarm:RebuildReceivedAlarms()
-	if self.opts.args.received then
+	if not self.opts.args.received then
 		self.opts.args.received = {name = L["Received Alarms"],
 								type = "group",
 								desc = L["Someone shared these alarms with you"],
@@ -693,7 +741,7 @@ function AuraAlarm:RebuildReceivedAlarms()
 					get = function()
 						return v.sender
 					end,
-					enabled = false,
+					disabled = true,
 					order = 1
 				},
 				aura_name = {
@@ -715,7 +763,7 @@ function AuraAlarm:RebuildReceivedAlarms()
 					get = function()
 						return v.id
 					end,
-					enabled = false,
+					disabled = true,
 					order=2
 				},
 				type = {
@@ -726,7 +774,7 @@ function AuraAlarm:RebuildReceivedAlarms()
 					get = function()
 						return v.type or 1
 					end,
-					enabled = false,
+					disabled = true,
 					order=3
 				},
 				color = {
@@ -1102,6 +1150,29 @@ function AuraAlarm:OnInitialize()
 				type = "group",
 				order = 2,
 				args = {	
+					createSet = {
+						name = L["Create a Set"],
+						desc = L["Enter a name for this set."],
+						type = 'input',
+						get = function()
+						end,
+						set = function(info, v)
+							self.db.profile.sets[#self.db.profile.sets + 1] = new()
+							local set = self.db.profile.sets[#self.db.profile.sets]
+							set.name = v
+							set.alarms = new()
+							for i, v in ipairs(self.db.profile.auras) do
+								set.alarms[#set.alarms + 1] = v.enabled == nil or v.enabled
+							end
+							
+							self.alarmSets[#self.alarmSets + 1] = set.name
+		
+							self.db.profile.currentSet = #self.alarmSets
+							clearCurrentAlarms()
+							refreshIcons()
+						end,
+						order = 1
+					},				
 					currentSet = {
 						name = L["Current Set"],
 						desc = L["Which alarm set to use"],
@@ -1130,29 +1201,6 @@ function AuraAlarm:OnInitialize()
 							applySet()
 						end,
 						values = self.alarmSets,
-						order = 1
-					},
-					createSet = {
-						name = L["Create a Set"],
-						desc = L["Enter a name for this set."],
-						type = 'input',
-						get = function()
-						end,
-						set = function(info, v)
-							self.db.profile.sets[#self.db.profile.sets + 1] = new()
-							local set = self.db.profile.sets[#self.db.profile.sets]
-							set.name = v
-							set.alarms = new()
-							for i, v in ipairs(self.db.profile.auras) do
-								set.alarms[#set.alarms + 1] = v.enabled == nil or v.enabled
-							end
-							
-							self.alarmSets[#self.alarmSets + 1] = set.name
-		
-							self.db.profile.currentSet = #self.alarmSets
-							clearCurrentAlarms()
-							refreshIcons()
-						end,
 						order = 2
 					},
 					target = {
@@ -1363,6 +1411,16 @@ local function restore()
 	clearCurrentAlarms()
 	refreshIcons()
 end
+
+local goToSleep = function(alarm)
+	alarm.justResting = true
+	for k, currentAlarm in pairs(AuraAlarm.AAWatchFrame.currentAlarms) do
+		if currentAlarm ~= alarm then
+			currentAlarm.active = false
+		end
+	end
+end
+
 	
 -- Determined mode
 function AuraAlarm:WatchForAura(elapsed)
@@ -1580,19 +1638,16 @@ function AuraAlarm:WatchForAura(elapsed)
 
 			if v.mode == 1 then -- Normal
 				local timer = 0
-				local goToSleep = function()
-					alarm.justResting = true
-					for k, currentAlarm in pairs(self.currentAlarms) do
-						if currentAlarm ~= alarm then
-							currentAlarm.active = false
-						end
-					end
-				end
 
-				self.background:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, 0, 1, false, 0, goToSleep)
+				self.background:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, 0, 1, false, 0)
 				if alarm.showIcon then
 					self.icon:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, 0, 1)
 				end
+				if not alarm.sleepTimer then
+					local frame = CreateFrame("Frame")
+					alarm.sleepTimer = LibFlash:New(frame)
+				end
+				alarm.sleepTimer:FadeIn(1 + self.fadeTime * 2, 0, 0, goToSleep, alarm)
 
 			elseif v.mode == 2 then -- Persist
 				self.background:FadeIn(self.fadeTime, 0, 1)
@@ -1634,18 +1689,26 @@ function AuraAlarm:WatchForAura(elapsed)
 				local x = pos * 44
 
 				pos = pos + 1
+				
+				local timerOffset = (v.fallOff == 0xdeadbeef and 8) or ((v.fallOff < 10 and (not k.precision or k.precision == 1) and 8) or 0)
 								
 				self.obj.AAIconFrame.icons[k]:SetPoint("TOPLEFT", x + 10, -10) 
 				self.obj.AAIconFrame.texts[k]:SetPoint("TOPLEFT", x + 34, -10)
-				self.obj.AAIconFrame.timers[k]:SetPoint("TOPLEFT", x + 10 + ((v.fallOff == 0xdeadbeef and 8) or 0), -34)
+				self.obj.AAIconFrame.timers[k]:SetPoint("TOPLEFT", x + 10 + timerOffset, -34)
 
 				if v.count and v.count > 0 then
 					width = width + 54
 				else
 					width = width + 44
 				end
-				if v.fallOff ~= 0xdeadbeef then
-					self.obj.AAIconFrame.timers[k]:SetText(string.format("%.1f", v.timeLeft))
+				if v.fallOff ~= 0xdeadbeef and not (not k.mode or k.mode == 1)then
+					if not k.precision or k.precision == 1 then
+						self.obj.AAIconFrame.timers[k]:SetText(string.format("%.0f", v.timeLeft))
+					else
+						self.obj.AAIconFrame.timers[k]:SetText(string.format("%.1f", v.timeLeft))
+					end
+				elseif not k.mode or k.mode == 1 then
+					self.obj.AAIconFrame.timers[k]:SetText("")
 				else
 					self.obj.AAIconFrame.timers[k]:SetText("?")
 				end
@@ -1670,6 +1733,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			end
 		end
 
+		local shouldColor = false
 		for l = o, 1, -1 do
 			for k, v in pairs(self.currentAlarms) do
 				if v.active and not v.justResting then
@@ -1685,11 +1749,14 @@ function AuraAlarm:WatchForAura(elapsed)
 							b = (p.b * p.a + b * (255 - p.a)) / 255
 						end
 					end
+					shouldColor = true
 				end
 			end
 		end
 
-		self.obj.AAFrame:SetBackdropColor(r / 255, g / 255, b / 255, a / 255)
+		if shouldColor then
+			self.obj.AAFrame:SetBackdropColor(r / 255, g / 255, b / 255, a / 255)
+		end
 
 		alarm.timer = 0
 	end
