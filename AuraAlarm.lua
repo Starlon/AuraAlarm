@@ -602,6 +602,7 @@ function AuraAlarm:BuildAurasOpts()
 				share = {
 					name = L["Share"],
 					desc = L["Share this alarm with a player"],
+					usage = L["<Enter player name>"],
 					type = "input",
 					set = function(info, v)
 						local msg = self:Serialize(self.db.profile.auras[k])
@@ -1097,36 +1098,6 @@ function AuraAlarm:OnInitialize()
 						pattern = "%d",
 						order = 11
 					},
-					gcHeader = {
-						name = L["Memory"],
-						type = "header",
-						order = 12
-					},
-					garbageCollect = {
-						name = L["Garbage Collect"],
-						desc = L["Whether to collect garbage."],
-						type = 'toggle',
-						get = function()
-							return self.db.profile.garbageCollect
-						end,
-						set = function(info, v)
-							self.db.profile.garbageCollect = v
-						end,
-						order = 13
-					},
-					gcRate = {
-						name = L["Garbage Collection Rate"],
-						desc = L["Rate at which garbage collection will be done (in ms)"],
-						type = 'input',
-						get = function()
-							return tostring((self.db.profile.gcRate or 10) * 100)
-						end,
-						set = function(info, v)
-							self.db.profile.gcRate = tonumber(v / 100)
-						end,
-						pattern = "%d",
-						order = 14
-					},
 					resetHeader = {
 						name = L["Troubleshooting"],
 						type = "header",
@@ -1425,7 +1396,6 @@ end
 -- Determined mode
 function AuraAlarm:WatchForAura(elapsed)
 	self.timer = (self.timer or 0) + elapsed
-	self.gcTimer = (self.gcTimer or 0) + elapsed
 
 	local showIcon
 	local name, icon, count, expirationTime, id, _
@@ -1470,13 +1440,6 @@ function AuraAlarm:WatchForAura(elapsed)
 	self.elapsed = 0
 
 	self.timer = 0
-
-	if self.obj.db.profile.garbageCollect and self.gcTimer > (self.obj.db.profile.gcRate or 100) then
-		if not InCombatLockdown() then
-			collectgarbage()
-		end
-		self.gcTimer = 0
-	end
 
 	if self.current then
 		self.current = findByIndex(self.currentAlarms, self.currentAlarms[self.current].i + 1)
