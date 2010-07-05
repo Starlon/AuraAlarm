@@ -656,9 +656,7 @@ end
 
 function AuraAlarm:OnInitialize()	
 
-	self.db = LibStub("AceDB-3.0"):New("AuraAlarmDB")
-	
-	self.db:RegisterDefaults({
+	self.db = LibStub("AceDB-3.0"):New("AuraAlarmDB", {
 		profile = {
 			auras = {},
 			sets = {{name=L["Default"]}},
@@ -667,7 +665,7 @@ function AuraAlarm:OnInitialize()
 			y = 0,
 			alpha = {r = 0, g = 0, b = 0, a = 0.4 * 255}
 		}
-	})
+	}, "Default")
 
 	self.alarmSets = {L["Default"]}
 
@@ -1058,6 +1056,10 @@ function AuraAlarm:OnEnable()
 	self.AAIconFrame:SetAlpha(0)
 	self.AAIconFrame:Show()
 	self:ChangeMode(self.db.profile.mode or 1)
+	if not self.opts.args.Profiles then
+ 		self.opts.args.Profiles = LibStub("AceDBOptions-3.0"):GetOptionsTable(self.db)
+		self.lastConfig = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("AuraAlarm", L["Profiles"], "AuraAlarm", "Profiles")
+	end
 end
 
 function AuraAlarm:OnDisable()
