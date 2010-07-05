@@ -303,7 +303,7 @@ local function refreshIcons()
         end
 end
 
-function applySet()
+local function applySet()
 	local set = AuraAlarm.db.profile.sets[AuraAlarm.db.profile.currentSet or 1]
 
 	if not set or not set.alarms then return end
@@ -321,7 +321,7 @@ function applySet()
 	end
 end
 
-function commandHandler(data)
+local function commandHandler(data)
 	local command, val = AuraAlarm:GetArgs(data, 2)
 	if not command or not val then 
 		AuraAlarm:Print(L["Usage: /auraalarm getset Default"])
@@ -704,7 +704,7 @@ function AuraAlarm:BuildAurasOpts()
 				clearCurrentAlarms()
 				refreshIcons()
 
-				self:Print(L["%s added."]:format(k))
+				self:Print(L["%s added."]:format(v.name))
 			end,
 			order = v == "DEBUFF" and low or hi
 		}
@@ -1383,7 +1383,7 @@ local function restore()
 	refreshIcons()
 end
 
-local goToSleep = function(alarm)
+local function goToSleep(alarm)
 	alarm.justResting = true
 	for k, currentAlarm in pairs(AuraAlarm.AAWatchFrame.currentAlarms) do
 		if currentAlarm ~= alarm then
