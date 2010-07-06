@@ -1264,6 +1264,7 @@ function AuraAlarm:OnInitialize()
 	})
 	self.AAFrame:ClearAllPoints()
 	self.AAFrame:SetAllPoints(UIParent)
+	self.AAFrame:SetAlpha(0)
 	
 	if not self.db.profile.mouse then self.db.profile.mouse = false end
 	if not self.db.profile.x then self.db.profile.x = 0 end
@@ -1285,6 +1286,7 @@ function AuraAlarm:OnInitialize()
 		insets = { left = 4, right = 4, top = 4, bottom = 4}})
 	self.AAIconFrame:SetBackdropColor(0, 1, 0, 1)
 	self.AAIconFrame:SetBackdropBorderColor(0, 0, 0, 1)
+	self.AAIconFrame:SetAlpha(0)
 
 	refreshIcons()
 	
@@ -1780,7 +1782,7 @@ end
 
 -- Normal mode
 function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
-	local _, eventtype, _, _, _, _, dst_name, _, _, aura_name, _, aura_type = ...
+	local _, eventtype, _, _, _, _, dst_name, _, aura_id, aura_name, _, aura_type = ...
 
 	if self.db.profile.mode ~= NORML_MODE then return end -- just in case
 
@@ -1833,8 +1835,8 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 			end
 
 			if alarmModes[v.mode] == L["Flash Once"] and eventtype == "SPELL_AURA_APPLIED" and stackTest then
-				self.AAFrame:SetBackdropColor(v.color.r / 255, v.color.g / 255, v.color.b / 255, self.db.profile.alpha.a / 255)
-				self.background:Flash(fadeTime, fadeTime, 1 + fadeTime * 2 , false, 0, 1)
+				self.AAFrame:SetBackdropColor(v.color.r / 255, v.color.g / 255, v.color.b / 255, self.db.profile.alpha.a / 255)				
+				self.background:Flash(fadeTime, fadeTime, 1 + fadeTime * 2, false, 0, 1)
 				if v.showIcon == nil or v.showIcon then
 					self.icon:Flash(fadeTime, fadeTime, 3 + fadeTime * 2, false, 0, 3)
 				end
@@ -1862,8 +1864,8 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 		end
 	end
 	
-	if not self.capturedAuras[aura_name] and dst_name == UnitName("player") then 
-		self.capturedAuras[aura_name] = aura_type 
+	if aura_id and not self.capturedAuras[aura_id] and dst_name == UnitName("player") then 
+		self.capturedAuras[aura_id] = {name = aura_name, type = aura_type }
 		self.AARebuildFrame:SetScript("OnUpdate", self.ProcessCaptures)
 	end
     
