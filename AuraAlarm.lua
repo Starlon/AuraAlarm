@@ -636,12 +636,12 @@ function AuraAlarm:BuildAurasOpts()
 	self.opts.args.auras.args.add = {
 		name = L["Add Aura"],
 		type = 'group',
-		desc = L["Add a aura"],
+		desc = L["Add an aura"],
 		args = {
 			as_text = {
 				name = "As Text",
 				type = 'input',
-				desc = L["Add a aura"],
+				desc = L["Add an aura"],
 				usage = L["<New aura here>"],
 				set = function(info, v) 
 					self.db.profile.auras[#self.db.profile.auras+1] = {name=v, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, fadeTime=.1, active=true} 
