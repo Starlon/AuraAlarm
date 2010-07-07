@@ -928,13 +928,23 @@ function AuraAlarm:OnInitialize()
 	self.db = LibStub("AceDB-3.0"):New("AuraAlarmDB", {
 		profile = {
 			auras = {},
-			sets = {{name=L["Default"]}},
+			sets = {{name=L["Default"]}, alarms=new()},
 			currentSet = 1,
 			x = 0,
 			y = 0,
-			alpha = {r = 0, g = 0, b = 0, a = 0.4 * 255}
+			alpha = {r = 0, g = 0, b = 0, a = 0.4 * 255},
+			mode = 1
 		}
 	}, "Default")
+
+	if not self.db.profile.version then
+		if self.db.profile.mode == 1 then
+			self.db.profile.mode = 2
+		else
+			self.db.profile.mode = 1
+		end
+		self.db.profile.version = 1
+	end
 
 	self.alarmSets = {L["Default"]}
 
@@ -1236,28 +1246,7 @@ function AuraAlarm:OnInitialize()
 	self:RegisterChatCommand("auraalarm", commandHandler)
     
 	AceConfigDialog:AddToBlizOptions("AuraAlarm")
-	
-	self.db:RegisterDefaults({
-		profile = {
-			auras = {},
-			sets = {{name=L["Default"]}, alarms=new()},
-			currentSet = 1,
-			x = 0,
-			y = 0,
-			alpha = {r = 0, g = 0, b = 0, a = 0.4 * 255},
-			mode = 2
-		}
-	})
-	
-	if not self.db.profile.version then
-		if self.db.profile.mode == 1 then
-			self.db.profile.mode = 2
-		else
-			self.db.profile.mode = 1
-		end
-		self.db.profile.version = 1
-	end
-	
+			
 	self.capturedAuras = {}
 	self:BuildAurasOpts()	
 	
