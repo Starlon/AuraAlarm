@@ -76,9 +76,9 @@ local auraTypes = {L["Harmful"], L["Helpful"]}
 
 local typeNames = {"DEBUFF", "BUFF"}
 
-local supportModes = {L["Normal"], L["Determined"]}
+local supportModes = {L["Normal"], L["Light"]}
 
-local NORML_MODE, DETERMINED_MODE = 1, 2
+local NORML_MODE, LIGHT_MODE = 1, 2
 
 local FADE_IN, FADE_OUT = 1, 2
 
@@ -1010,7 +1010,7 @@ function AuraAlarm:OnInitialize()
 					},
 					mode = {
 						name = L["Operation Mode"],
-						desc = L["Use 'Determined' for events that don't show up in the combat log."],
+						desc = L["Light mode has less features"],
 						type = "select",
 						values = supportModes,
 						get = function()
@@ -1023,7 +1023,7 @@ function AuraAlarm:OnInitialize()
 						order = 5
 					},
 					determined_rate = {
-						name = L["Determined Mode Rate (in ms)"],
+						name = L["Normal Mode Rate (in ms)"],
 						type = "input",
 						get = function()
 							return tostring((self.db.profile.determined_rate or .4) * 100)
@@ -1244,10 +1244,20 @@ function AuraAlarm:OnInitialize()
 			currentSet = 1,
 			x = 0,
 			y = 0,
-			alpha = {r = 0, g = 0, b = 0, a = 0.4 * 255}
+			alpha = {r = 0, g = 0, b = 0, a = 0.4 * 255},
+			mode = 2
 		}
 	})
-
+	
+	if not self.db.profile.version then
+		if self.db.profile.mode == 1 then
+			self.db.profile.mode = 2
+		else
+			self.db.profile.mode = 1
+		end
+		self.db.profile.version = 1
+	end
+	
 	self.capturedAuras = {}
 	self:BuildAurasOpts()	
 	
@@ -1850,7 +1860,7 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 			self.AAIconFrame.icons[v]:SetTexture(icon)
 
 			self.AAIconFrame.icons[v]:SetPoint("LEFT", 10, 0)
-			self.AAIconFrame.texts[v]:SetPoint("LEFT", 24, 0)
+			self.AAIconFrame.texts[v]:SetPoint("LEFT", 34, 0)
 
 			if isStacked then
 				self.AAIconFrame:SetWidth(80)
@@ -1896,13 +1906,13 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 end
 
 function AuraAlarm:ChangeMode(v)
-	if supportModes[v] == L["Normal"] then
+	if v == LIGHT_MODE then
 		self.AAWatchFrame:SetScript("OnUpdate", nil)
 		self:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
-	else
+	elseif v == NORML_MODE then
 		if self.AAWatchFrame.currentAlarms then
 			del(self.AAWatchFrame.currentAlarms)
-			self.AAWAtchFrame.currentAlarms = nil
+			self.AAWatchFrame.currentAlarms = nil
 			self.AAWatchFrame.current = nil
 		end
 		self.AAWatchFrame:SetScript("OnUpdate", self.WatchForAura)
@@ -1911,27 +1921,47 @@ function AuraAlarm:ChangeMode(v)
 end
 
 function AuraAlarm:AddAuraUnderMouse()
-	do return end
 	local scannedText = GameTooltipTextLeft1:GetText()
-	local i = 1
-	while true do
-		local buffIndex = GetPlayerBuff(i, "HARMFUL")
-		if buffIndex < 1 then break end
-		local buffName = GetPlayerBuffName(buffIndex)
+	if not scannedText then return end
+	for i = 1, 40 do
+
+		local buffName, _, _, count, _, _, _, _, _, _, id = UnitDebuff("player", i)
+						
 		local isNotAlarm = true
+		
 		for k,v in pairs(self.db.profile.auras) do
 			if buffName == v.name then
 				isNotAlarm = false
 				break
 			end
 		end
+				
 		if isNotAlarm and buffName == scannedText then
-			self.db.profile.auras[#self.db.profile.auras+1] = {name=buffName, color={r=255,g=0,b=0,a=0.4 * 255}, duration=1, soundFile="None", flashBackground=true, active=true} 
+			self.db.profile.auras[#self.db.profile.auras+1] = {id = id, name=buffName, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, type=1, flashTime=.1, active=true} 
 			self:BuildAurasOpts() 
-			self:Print(L["%s added to AuraAlarm."], buffName)
-			break
+			self:Print(string.format(L["%s added to AuraAlarm."], buffName))
+			restore()
+			return
 		end
-		i = i + 1
+				
+		isNotAlarm = true
+		
+		buffName, _, _, count, _, _, _, _, _, _, id = UnitBuff("player", i)
+		
+		for k, v in pairs(self.db.profile.auras) do
+			if buffName == v.name then
+				isNotAlarm = false
+				break
+			end
+		end
+		
+		if isNotAlarm and buffName == scannedText then
+			self.db.profile.auras[#self.db.profile.auras+1] = {id = id, name=buffName, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, type=2, flashTime=.1, active=true} 
+			self:BuildAurasOpts()
+			self:Print(string.format(L["%s added to AuraAlarm."], buffName))
+			restore()
+			return
+		end
 	end
 end
 
