@@ -674,20 +674,17 @@ function AuraAlarm:BuildAurasOpts()
 	local low, hi = 3, 3
 	
 	for i, v in pairs(self.capturedAuras or {})  do
-		if self.captured == "DEBUFF" then
-			low = low + 1
-		else
+		if v.type == "DEBUFF" then
 			hi = hi + 1
 		end
 	end
 
-	hi = low + hi
-
 	for k,v in pairs(self.capturedAuras or {}) do
 		local text = v.name
-		if v == "DEBUFF" then text = text .. L[" (D)"] end
+		if v.type == "DEBUFF" then text = text .. L[" (D)"] end
 		self.opts.args.auras.args.add.args[tostring(k)] = {
 			name = text,
+			desc = v.desc,
 			type = 'execute',
 			func = function()
 				self.db.profile.auras[#self.db.profile.auras+1] = {id = k, name=v.name, color={r=255,g=0,b=0,a=0.4 * 255}, soundFile="None", mode=1, type=v.type == "DEBUFF" and 1 or 2, flashTime=.1, active=true} 
@@ -706,9 +703,9 @@ function AuraAlarm:BuildAurasOpts()
 
 				self:Print(L["%s added."]:format(v.name))
 			end,
-			order = v == "DEBUFF" and low or hi
+			order = v.type == "DEBUFF" and low or hi
 		}
-		if v == "DEBUFF" then
+		if v.type == "DEBUFF" then
 			low = low + 1
 		else
 			hi = hi + 1
@@ -1287,6 +1284,18 @@ function AuraAlarm:OnInitialize()
 	self.AAIconFrame:SetBackdropColor(0, 1, 0, 1)
 	self.AAIconFrame:SetBackdropBorderColor(0, 0, 0, 1)
 	self.AAIconFrame:SetAlpha(0)
+	
+	self.AAScanTooltip = CreateFrame("GameTooltip", "AAScanTooltip", UIParent, "GameTooltipTemplate")
+	self.AAScanTooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
+	
+	self.AAScanTooltip.linesLeft = new()
+	self.AAScanTooltip.linesRight = new()
+	
+	for i = 1, 10 do
+		self.AAScanTooltip:AddDoubleLine(' ', ' ')
+		self.AAScanTooltip.linesLeft[i] = _G["AAScanTooltipTextLeft" .. i]
+		self.AAScanTooltip.linesRight[i] = _G["AAScanTooltipTextRight" .. i]
+	end
 
 	refreshIcons()
 	
@@ -1527,7 +1536,22 @@ function AuraAlarm:WatchForAura(elapsed)
 					end
 				end
 				if not test then
-					self.obj.capturedAuras[id] = {name=name, type=type}
+					self.obj.AAScanTooltip:SetUnitAura("player", i, type == "DEBUFF" and "HARMFUL" or "HELPFUL")
+					local desc = ""
+					for line = 2, self.obj.AAScanTooltip:NumLines() do
+						local text = self.obj.AAScanTooltip.linesLeft[line]:GetText()
+						
+						if text then
+							desc = desc .. text .. " "
+						end
+						
+						text = self.obj.AAScanTooltip.linesRight[line]:GetText()
+						
+						if text then
+							desc = desc .. text .. " "
+						end
+					end
+					self.obj.capturedAuras[id] = {name=name, type=type, desc=desc}
 					self.obj.AARebuildFrame:SetScript("OnUpdate", self.obj.ProcessCaptures)
 				end
 			end
