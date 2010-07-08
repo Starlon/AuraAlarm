@@ -177,18 +177,11 @@ local function cleanup(frame, elapsed)
 end
 
 local function clearCurrentAlarms()
-	if AuraAlarm.AAWatchFrame.background then
-		AuraAlarm.AAWatchFrame.background:Stop()
-	end
-	if AuraAlarm.AAWatchFrame.icon then
-		AuraAlarm.AAWatchFrame.icon:Stop()
-	end
-	if AuraAlarm.AAWatchFrame.currentAlarms then
-		del(AuraAlarm.AAWatchFrame.currentAlarms)
-	end
 	
 	if AuraAlarm.AAWatchFrame.currentAlarms then
 		for k, v in pairs(AuraAlarm.AAWatchFrame.currentAlarms) do
+			v.background:Del()
+			v.icon:Del()
 			del(v)
 		end
 
@@ -562,6 +555,48 @@ function AuraAlarm:BuildAurasOpts()
 					order = 16
 
 				},
+				shouldDelay = {
+					name = L["Delayed Alarm"],
+					desc = L["Toggle whether to delay flash. This only pertains to Flash Once mode."],
+					type = "toggle",
+					get = function()
+						return self.db.profile.auras[k].shouldDelay
+					end,
+					set = function(info, v)
+						self.opts.args.auras.args["Aura" .. tostring(k)].args.delay.disabled = not v
+						self.opts.args.auras.args["Aura" .. tostring(k)].args.duration.disabled = not v
+						self.db.profile.auras[k].shouldDelay = v
+					end,
+					order = 17
+				},
+				delay = {
+					name = L["Delay"],
+					desc = L["Delay in seconds before flashing screen"],
+					type = "input",
+					pattern = "%d",
+					get = function()
+						return tostring(self.db.profile.auras[k].delay or 0)
+					end,
+					set = function(info, v)
+						self.db.profile.auras[k].delay = v
+					end,
+					disabled = not (self.db.profile.auras[k].shouldDelay ~= nil or self.db.profile.auras[k].shouldDelay),
+					order = 18
+				},
+				duration = {
+					name = L["Aura Duration"],
+					desc = L["Enter the aura's duration in seconds"],
+					type = "input",
+					pattern = "%d",
+					get = function()
+						return tostring(self.db.profile.auras[k].duration or 0)
+					end,
+					set = function(info, v)
+						self.db.profile.auras[k].duration = v
+					end,
+					disabled = not (self.db.profile.auras[k].shouldDelay ~= nil or self.db.profile.auras[k].shouldDelay),
+					order = 19
+				},
 				enabled = {
 					name = L["Enabled"],
 					desc = L["Whether this alarm is enabled"],
@@ -573,7 +608,7 @@ function AuraAlarm:BuildAurasOpts()
 						self.db.profile.auras[k].enabled = v
 						clearCurrentAlarms()
 					end,
-					order = 17
+					order = 20
 				},
 				copy = {
 					name = L["Copy"],
@@ -597,7 +632,7 @@ function AuraAlarm:BuildAurasOpts()
 						self:BuildAurasOpts()
 						self:Print(L["Alarm copied."])
 					end,
-					order = 18
+					order = 21
 				},
 				share = {
 					name = L["Share"],
@@ -609,7 +644,7 @@ function AuraAlarm:BuildAurasOpts()
 						self:SendCommMessage(prefix, msg, "WHISPER", v)
 						self:Print(string.format(L["Alarm shared with %s."], v))
 					end,
-					order = 19
+					order = 22
 				},
 				remove = {
 					name = L["Remove"],
@@ -1036,7 +1071,7 @@ function AuraAlarm:OnInitialize()
 						name = L["Normal Mode Rate (in ms)"],
 						type = "input",
 						get = function()
-							return tostring((self.db.profile.determined_rate or .4) * 100)
+							return tostring((self.db.profile.determined_rate or .3) * 100)
 						end,
 						set = function(info, v) 
 							self.db.profile.determined_rate = tonumber(v) / 100
@@ -1393,15 +1428,37 @@ local function restore()
 	refreshIcons()
 end
 
-local function goToSleep(alarm)
-	alarm.justResting = true
-	for k, currentAlarm in pairs(AuraAlarm.AAWatchFrame.currentAlarms) do
-		if currentAlarm ~= alarm then
-			currentAlarm.active = false
+local function deactivateAlarms()
+	for k, v in pairs(AuraAlarm.AAWatchFrame.currentAlarms) do
+		if not v.delayed and not (k.shouldDelay and v.justSleeping) then
+			v.active = false
+			v.justSleeping = false
+			v.timer = 0
+			v.fallTimer = 0
+			v.blinkTimer = 0
+			v.soundTimer = 0
 		end
 	end
 end
 
+local function goToSleep(alarm)
+	alarm.justSleeping = true
+	for k, v in pairs(AuraAlarm.AAWatchFrame.currentAlarms) do
+		if v ~= alarm and not v.justSleeping then
+			v.active = false
+			v.timer = 0
+			v.fallTimer = 0
+			v.blinkTimer = 0
+			v.soundTimer = 0
+		end
+	end
+end
+
+local function endDelay(alarm)
+	alarm.delayed = false
+	alarm.sleepTimer:FadeIn(1 + AuraAlarm.AAWatchFrame.fadeTime * 2, 0, 0, goToSleep, alarm)
+	PlaySoundFile(LSM:Fetch("sound", soundFiles[getLSMIndexByName("sound", alarm.table.soundFile) or getLSMIndexByName("sound", "None")]))
+end
 	
 -- Determined mode
 function AuraAlarm:WatchForAura(elapsed)
@@ -1430,8 +1487,10 @@ function AuraAlarm:WatchForAura(elapsed)
 				alarm.showIcon = v.showIcon
 				alarm.active = false
 				alarm.table = v
+				alarm.background = LibFlash:New(self.obj.AAFrame)
+				alarm.icon = LibFlash:New(self.obj.AAIconFrame)				
 				alarm.i = self.count + 1
-				self.count = self.count + 1
+				self.count = self.count + 1				
 			end
 		end
 	end
@@ -1440,7 +1499,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		return
 	end
 
-	if self.timer < ((self.obj.db.profile.determined_rate or .4) / self.count) then
+	if self.timer < ((self.obj.db.profile.determined_rate or .3) / self.count) then
 		self.elapsed = (self.elapsed or 0) + elapsed
 		return
 	end
@@ -1557,12 +1616,9 @@ function AuraAlarm:WatchForAura(elapsed)
 		end
 	end
 
-	if not self.background then self.background = LibFlash:New(self.obj.AAFrame) end
-	if not self.icon then self.icon = LibFlash:New(self.obj.AAIconFrame) end
-
 	self.fadeTime = self.obj.db.profile.fadeTime or .3
 
-	if alarm.timer > (self.obj.db.profile.determined_rate or .4) then
+	if alarm.timer > (self.obj.db.profile.determined_rate or .3) then
 		local i = alarm.i
 		local v = self.current
 
@@ -1605,8 +1661,19 @@ function AuraAlarm:WatchForAura(elapsed)
 		
 		local auraTest = (name and v.name == name) or (id and v.id == id)
 		
-		if auraTest and not alarm.active and not alarm.justResting and (firstTest or secondTest) then
+		if auraTest and alarm.expirationTime ~= expirationTime then
+			alarm.active = false
+			alarm.justSleeping = false
+			alarm.timer = 0
+			alarm.timer = 0
+			alarm.fallTimer = 0
+			alarm.blinkTimer = 0
+			alarm.soundTimer = 0			
+		end
+		
+		if auraTest and not alarm.active and not alarm.justSleeping and (firstTest or secondTest) then
 			alarm.fallOff = alarm.timeLeft
+			alarm.expirationTime = expirationTime
 
 			if alarm.fallOff < 0 then
 				alarm.fallOff = 0xdeadbeef
@@ -1614,39 +1681,48 @@ function AuraAlarm:WatchForAura(elapsed)
 
 			alarm.fallTimer = 0
 
-			if self.background.active then
-				self.background:Stop()
-			end
-
-			if self.icon.active then
-				self.icon:Stop()
-			end
-
 			alarm.showIcon = v.showIcon == nil or v.showIcon
 
 			if v.mode == 1 then -- Normal
 				local timer = 0
 
-				self.background:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, 0, 1, false, 0)
-				if alarm.showIcon then
-					self.icon:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, 0, 1)
-				end
 				if not alarm.sleepTimer then
 					local frame = CreateFrame("Frame")
 					alarm.sleepTimer = LibFlash:New(frame)
+				end					
+				
+				if v.shouldDelay and v.duration and v.delay then
+					local delta = v.duration - alarm.fallOff
+					local calc = v.delay - delta
+					if calc > 0 then
+						alarm.background:Stop()
+						alarm.background:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, calc, 1)
+						if alarm.showIcon then
+							alarm.icon:Stop()
+							alarm.icon:Flash(self.fadeTime, self.fadeTime, calc + self.fadeTime * 4, false, 0, calc + self.fadeTime * 2)
+						end
+						alarm.delayed = true
+						alarm.sleepTimer:FadeIn(calc, 0, 0, endDelay, alarm)
+					else
+						alarm.justSleeping = true
+					end
+				else
+					alarm.background:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, 0, 1)
+					if alarm.showIcon then
+						alarm.icon:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, 0, 1)
+					end					
+					alarm.sleepTimer:FadeIn(1 + self.fadeTime * 2, 0, 0, goToSleep, alarm)
 				end
-				alarm.sleepTimer:FadeIn(1 + self.fadeTime * 2, 0, 0, goToSleep, alarm)
-
 			elseif v.mode == 2 then -- Persist
-				self.background:FadeIn(self.fadeTime, 0, 1)
+				alarm.background:FadeIn(self.fadeTime, 0, 1)
 				if alarm.showIcon then
-					self.icon:FadeIn(self.fadeTime, 0, 1)
+					alarm.icon:FadeIn(self.fadeTime, 0, 1)
 				end
 				alarm.wasPersist = true
 			elseif v.mode == 3 then -- Blink
-				self.background:Flash(self.fadeTime, self.fadeTime, alarm.fallOff + self.fadeTime * 2, false, 0, alarm.fallOff, true, self.obj.db.profile.blinkRate)
+				alarm.background:Flash(self.fadeTime, self.fadeTime, alarm.fallOff + self.fadeTime * 2, false, 0, alarm.fallOff, true, self.obj.db.profile.blinkRate)
 				if alarm.showIcon then
-					self.icon:Flash(self.fadeTime, self.fadeTime, alarm.fallOff + self.fadeTime * 2, false, 0, alarm.fallOff, true, self.obj.db.profile.blinkRate)
+					alarm.icon:Flash(self.fadeTime, self.fadeTime, alarm.fallOff + self.fadeTime * 2, false, 0, alarm.fallOff, true, self.obj.db.profile.blinkRate)
 				end
 			end
 			alarm.active = true
@@ -1656,7 +1732,7 @@ function AuraAlarm:WatchForAura(elapsed)
 			self.obj.AAIconFrame.icons[v]:SetTexture(icon)
 		end
 		if auraTest  then
-			if (isStacked and count ~= alarm.lastCount) or (v.soundPersist and alarm.soundTimer > (v.soundRate or 2) and v.mode == PERSIST_MODE) or firstTime then
+			if (isStacked and count ~= alarm.lastCount) or (v.soundPersist and alarm.soundTimer > (v.soundRate or 2) and v.mode == PERSIST_MODE) or firstTime and not self.current.shouldDelay then
 				PlaySoundFile(LSM:Fetch("sound", soundFiles[getLSMIndexByName("sound", v.soundFile) or getLSMIndexByName("sound", "None")]))
 				if isStacked and count ~= alarm.lastCount then
 					alarm.lastCount = count
@@ -1672,7 +1748,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		for k, v in pairs(self.currentAlarms) do
 			self.obj.AAIconFrame.icons[k]:ClearAllPoints()
 			self.obj.AAIconFrame.texts[k]:ClearAllPoints()
-			if v.showIcon and v.active and not v.justResting then
+			if v.showIcon and v.active and not v.justSleeping then
 
 				local x = pos * 44
 
@@ -1689,7 +1765,7 @@ function AuraAlarm:WatchForAura(elapsed)
 				else
 					width = width + 44
 				end
-				if v.fallOff ~= 0xdeadbeef and not (not k.mode or k.mode == 1)then
+				if v.fallOff ~= 0xdeadbeef and not ((not k.mode or k.mode == 1) and not v.delayed)then
 					if not k.precision or k.precision == 1 then
 						self.obj.AAIconFrame.timers[k]:SetText(string.format("%.0f", v.timeLeft))
 					else
@@ -1700,7 +1776,7 @@ function AuraAlarm:WatchForAura(elapsed)
 				else
 					self.obj.AAIconFrame.timers[k]:SetText("?")
 				end
-			elseif v.showIcon and not v.active or v.justResting then
+			elseif v.showIcon and not v.active or v.justSleeping then
 				self.obj.AAIconFrame.icons[k]:SetTexture(nil)
 				self.obj.AAIconFrame.texts[k]:SetText("")
 				self.obj.AAIconFrame.timers[k]:SetText("")
@@ -1715,7 +1791,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		for l = 1, self.obj.db.profile.layers or 2 do
 			for k, v in pairs(self.currentAlarms) do
 				local p = k.color	
-				if p.a == 255 and v.active and not v.justResting then
+				if p.a == 255 and v.active and not v.justSleeping and not v.delayed then
 					o = l
 				end
 			end
@@ -1724,7 +1800,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		local shouldColor = false
 		for l = o, 1, -1 do
 			for k, v in pairs(self.currentAlarms) do
-				if v.active and not v.justResting then
+				if v.active and not v.justSleeping and not v.delayed then
 					if (k.layer or 2) == l then
 						local p = k.color
 						if p.a == 255 then
@@ -1765,21 +1841,28 @@ function AuraAlarm:WatchForAura(elapsed)
 	end
 
 	if alarm.active and alarm.fallTimer > (alarm.fallOff or 0xdead) or (not activeAura  and alarm.active) then
+		alarm.background:Stop()
+		alarm.icon:Stop()
+		if alarm.sleepTimer then
+			alarm.sleepTimer:Stop()
+		end
+		alarm.justSleeping = false
+		alarm.delayed = false
+		alarm.active = false				
 		if alarm.wasPersist then
-			local ret = self.background:FadeOut(self.fadeTime, 1, 0, restore)
+			local ret = alarm.background:FadeOut(self.fadeTime, 1, 0, deactivateAlarms)
 			if not ret then 
-				self.background.frame:SetAlpha(0)
-				restore() 
+				alarm.background.frame:SetAlpha(0)
 			end
 			if alarm.showIcon == nil or alarm.showIcon then 
-				ret = self.icon:FadeOut(self.fadeTime, 1, 0)
+				ret = alarm.icon:FadeOut(self.fadeTime, 1, 0)
 				if not ret then
-					self.icon.frame:SetAlpha(0)
+					alarm.icon.frame:SetAlpha(0)
 				end
 			end
 			self.timer = self.timer - self.fadeTime * 2
 		else
-			restore()
+			deactivateAlarms()
 		end
 	end
 
@@ -1803,13 +1886,13 @@ function AuraAlarm:WatchForAura(elapsed)
 	del(auras)
 end
 
--- Normal mode
+-- Light mode
 function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 	local _, eventtype, _, _, _, _, dst_name, _, aura_id, aura_name, _, aura_type = ...
 
-	if self.db.profile.mode ~= NORML_MODE then return end -- just in case
-
 	if (eventtype ~= "SPELL_AURA_APPLIED" and eventtype ~= "SPELL_AURA_REMOVED") then return end
+	
+	if self.db.profile.mode ~= LIGHT_MODE then return end
 
 	if not self.background then self.background = LibFlash:New(self.AAFrame) end
 	if not self.icon then self.icon = LibFlash:New(self.AAIconFrame) end
