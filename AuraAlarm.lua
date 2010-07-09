@@ -563,39 +563,24 @@ function AuraAlarm:BuildAurasOpts()
 						return self.db.profile.auras[k].shouldDelay
 					end,
 					set = function(info, v)
-						self.opts.args.auras.args["Aura" .. tostring(k)].args.delay.disabled = not v
-						self.opts.args.auras.args["Aura" .. tostring(k)].args.duration.disabled = not v
+						self.opts.args.auras.args["Aura" .. tostring(k)].args.when.disabled = not v
 						self.db.profile.auras[k].shouldDelay = v
 					end,
 					order = 17
 				},
-				delay = {
-					name = L["Delay"],
-					desc = L["Delay in seconds before flashing screen"],
+				when = {
+					name = L["When to Fire"],
+					desc = L["Fire alarm this many seconds from end of aura's duration"],
 					type = "input",
 					pattern = "%d",
 					get = function()
-						return tostring(self.db.profile.auras[k].delay or 0)
+						return tostring(self.db.profile.auras[k].when or 0)
 					end,
 					set = function(info, v)
-						self.db.profile.auras[k].delay = v
+						self.db.profile.auras[k].when = v
 					end,
 					disabled = not (self.db.profile.auras[k].shouldDelay ~= nil or self.db.profile.auras[k].shouldDelay),
 					order = 18
-				},
-				duration = {
-					name = L["Aura Duration"],
-					desc = L["Enter the aura's duration in seconds"],
-					type = "input",
-					pattern = "%d",
-					get = function()
-						return tostring(self.db.profile.auras[k].duration or 0)
-					end,
-					set = function(info, v)
-						self.db.profile.auras[k].duration = v
-					end,
-					disabled = not (self.db.profile.auras[k].shouldDelay ~= nil or self.db.profile.auras[k].shouldDelay),
-					order = 19
 				},
 				enabled = {
 					name = L["Enabled"],
@@ -1691,9 +1676,9 @@ function AuraAlarm:WatchForAura(elapsed)
 					alarm.sleepTimer = LibFlash:New(frame)
 				end					
 				
-				if v.shouldDelay and v.duration and v.delay then
-					local delta = v.duration - alarm.fallOff
-					local calc = v.delay - delta
+				if v.shouldDelay and v.when then
+					local delta = alarm.fallOff
+					local calc = alarm.fallOff - v.when
 					if calc > 0 then
 						alarm.background:Stop()
 						alarm.background:Flash(self.fadeTime, self.fadeTime, 1 + self.fadeTime * 2, false, calc, 1)
