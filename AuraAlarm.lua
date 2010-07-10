@@ -1677,7 +1677,6 @@ function AuraAlarm:WatchForAura(elapsed)
 				end					
 				
 				if v.shouldDelay and v.when then
-					local delta = alarm.fallOff
 					local calc = alarm.fallOff - v.when
 					if calc > 0 then
 						alarm.background:Stop()
