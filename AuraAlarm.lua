@@ -1452,10 +1452,17 @@ function AuraAlarm:WatchForAura(elapsed)
 	local showIcon
 	local name, icon, count, expirationTime, id, _
 
+	if self.timer < (self.obj.db.profile.determined_rate or .3) then
+		return
+	end
+	
+	elapsed = self.timer
+
+	self.timer = 0
+	
 	if #self.obj.db.profile.auras == 0 then
 		return
 	end
-
 
 	if not self.currentAlarms then 
 		self.count = 0
@@ -1483,35 +1490,6 @@ function AuraAlarm:WatchForAura(elapsed)
 	if not self.count or self.count == 0 then
 		return
 	end
-
-	if self.timer < ((self.obj.db.profile.determined_rate or .3) / self.count) then
-		self.elapsed = (self.elapsed or 0) + elapsed
-		return
-	end
-
-	elapsed = (self.elapsed or 0) + elapsed
-
-	self.elapsed = 0
-
-	self.timer = 0
-
-	if self.current then
-		self.current = findByIndex(self.currentAlarms, self.currentAlarms[self.current].i + 1)
-	end
-
-	if not self.current then
-		self.current = findByIndex(self.currentAlarms, 1) 
-		if not self.current then
-			return
-		end
-	end
-
-	local alarm = self.currentAlarms[self.current]
-
-	alarm.timer = (alarm.timer or 0) + elapsed
-	alarm.fallTimer = (alarm.fallTimer or 0) + elapsed
-	alarm.blinkTimer = (alarm.blinkTimer or 0) + elapsed
-	alarm.soundTimer = (alarm.soundTimer or 0) + elapsed
 
 	local units = new()
 
@@ -1603,7 +1581,28 @@ function AuraAlarm:WatchForAura(elapsed)
 
 	self.fadeTime = self.obj.db.profile.fadeTime or .3
 
-	if alarm.timer > (self.obj.db.profile.determined_rate or .3) then
+	for current, alarm in pairs(self.currentAlarms) do
+
+	self.current = current
+--[[	if self.current then
+		self.current = findByIndex(self.currentAlarms, self.currentAlarms[self.current].i + 1)
+	end
+
+	if not self.current then
+		self.current = findByIndex(self.currentAlarms, 1) 
+		if not self.current then
+			return
+		end
+	end
+
+	local alarm = self.currentAlarms[self.current]
+]]
+	alarm.timer = (alarm.timer or 0) + elapsed
+	alarm.fallTimer = (alarm.fallTimer or 0) + elapsed
+	alarm.blinkTimer = (alarm.blinkTimer or 0) + elapsed
+	alarm.soundTimer = (alarm.soundTimer or 0) + elapsed
+	
+	if true then
 		local i = alarm.i
 		local v = self.current
 
@@ -1808,7 +1807,7 @@ function AuraAlarm:WatchForAura(elapsed)
 
 		alarm.timer = 0
 	end
-
+	
 	local activeAura = false
 	local aura = auras[self.current.unit or "player"]
 
@@ -1848,6 +1847,8 @@ function AuraAlarm:WatchForAura(elapsed)
 		else
 			deactivateAlarms()
 		end
+	end
+	
 	end
 
 	local totalActive = 0
