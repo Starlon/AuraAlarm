@@ -1727,6 +1727,10 @@ function AuraAlarm:WatchForAura(elapsed)
 			self.obj.AAIconFrame.texts[v]:SetText(stackText)
 		end
 
+		alarm.timer = 0
+	end
+
+	do
 		local pos, width = 0, 0
 		for k, v in pairs(self.currentAlarms) do
 			self.obj.AAIconFrame.icons[k]:ClearAllPoints()
@@ -1804,8 +1808,6 @@ function AuraAlarm:WatchForAura(elapsed)
 		if shouldColor then
 			self.obj.AAFrame:SetBackdropColor(r / 255, g / 255, b / 255, a / 255)
 		end
-
-		alarm.timer = 0
 	end
 	
 	local activeAura = false
