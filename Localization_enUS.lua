@@ -136,3 +136,5 @@ L["Delayed Alarm"] = true
 L["Toggle whether to delay flash. This only pertains to Flash Once mode."] = true
 L["When to Fire"] = true
 L["Fire alarm this many seconds from end of aura's duration"] = true
+L["Flash Duration"] = true
+L["Duration of flash effects"] = true
