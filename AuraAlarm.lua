@@ -182,6 +182,7 @@ local function clearCurrentAlarms()
 		for k, v in pairs(AuraAlarm.AAWatchFrame.currentAlarms) do
 			v.background:Del()
 			v.icon:Del()
+			v.sleepTimer:Del()
 			del(v)
 		end
 
@@ -280,20 +281,20 @@ local function refreshIcons()
 		end
 		del(AuraAlarm.AAIconFrame.timers)
 	end
-        AuraAlarm.AAIconFrame.icons = new()
-        AuraAlarm.AAIconFrame.texts = new()
-		AuraAlarm.AAIconFrame.timers = new()
-        for i, v in pairs(AuraAlarm.db.profile.auras) do
-                if not AuraAlarm.AAIconFrame.icons[v] then
-                        AuraAlarm.AAIconFrame.icons[v] = newIcon(AuraAlarm.AAIconFrame)
-                end
-                if not AuraAlarm.AAIconFrame.texts[v] then
-                        AuraAlarm.AAIconFrame.texts[v] = newFont1(AuraAlarm.AAIconFrame)
-                end
-				if not AuraAlarm.AAIconFrame.timers[v] then
-						AuraAlarm.AAIconFrame.timers[v] = newFont2(AuraAlarm.AAIconFrame)
-				end
-        end
+	AuraAlarm.AAIconFrame.icons = new()
+	AuraAlarm.AAIconFrame.texts = new()
+	AuraAlarm.AAIconFrame.timers = new()
+	for i, v in pairs(AuraAlarm.db.profile.auras) do
+		if not AuraAlarm.AAIconFrame.icons[v] then
+			AuraAlarm.AAIconFrame.icons[v] = newIcon(AuraAlarm.AAIconFrame)
+		end
+        if not AuraAlarm.AAIconFrame.texts[v] then
+			AuraAlarm.AAIconFrame.texts[v] = newFont1(AuraAlarm.AAIconFrame)
+		end
+		if not AuraAlarm.AAIconFrame.timers[v] then
+			AuraAlarm.AAIconFrame.timers[v] = newFont2(AuraAlarm.AAIconFrame)
+		end
+	end
 end
 
 local function applySet()
@@ -1489,13 +1490,9 @@ function AuraAlarm:WatchForAura(elapsed)
 		self.obj.AAIconFrame:SetAlpha(0)
 		self.obj.AAFrame:SetAlpha(0)
 	end
-
-	if #self.obj.db.profile.auras == 0 then
-		return
-	end
 	
 	local units = new()
-
+	
 	for i, v in pairs(self.obj.db.profile.auras) do
 		units[#units + 1] = v.unit or "player"
 	end
