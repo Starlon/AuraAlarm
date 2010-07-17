@@ -1648,7 +1648,7 @@ function AuraAlarm:WatchForAura(elapsed)
 		end
 
 		alarm.isStacked = isStacked
-		local firstTest = count and count > 0 and (current.count == 0 or currrent.count == nil)
+		local firstTest = count and count > 0 and (current.count == 0 or current.count == nil)
 		local secondTest = (isStacked and current.count == count) or not isStacked
 
 		local firstTime = false
@@ -1690,6 +1690,7 @@ function AuraAlarm:WatchForAura(elapsed)
 							alarm.icon:Flash(fadeTime, fadeTime, calc + fadeTime * 4, false, 0, calc + fadeTime * 2)
 						end
 						alarm.delayed = true
+						alarm.sleepTimer:Stop()
 						alarm.sleepTimer:FadeIn(calc, 0, 0, endDelay, alarm)
 					else
 						alarm.justSleeping = true
