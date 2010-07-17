@@ -955,7 +955,8 @@ function AuraAlarm:OnInitialize()
 			y = 0,
 			alpha = {r = 0, g = 0, b = 0, a = 0.4 * 255},
 			mode = 1,
-			flashDuration = 1
+			flashDuration = 1,
+			normalRate = 1
 		}
 	}, "Default")
 
@@ -1058,7 +1059,7 @@ function AuraAlarm:OnInitialize()
 						name = L["Normal Mode Rate (in ms)"],
 						type = "input",
 						get = function()
-							return tostring((self.db.profile.normalRate or .3) * 100)
+							return tostring((self.db.profile.normalRate or 1) * 100)
 						end,
 						set = function(info, v) 
 							self.db.profile.normalRate = tonumber(v) / 100
@@ -1469,7 +1470,7 @@ function AuraAlarm:WatchForAura(elapsed)
 	local showIcon
 	local name, icon, count, expirationTime, id, _
 
-	if self.timer < (self.obj.db.profile.normalRate or .3) then
+	if self.timer < (self.obj.db.profile.normalRate or 1) then
 		return
 	end
 	
