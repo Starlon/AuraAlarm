@@ -969,7 +969,7 @@ function AuraAlarm:OnInitialize()
 		self.db.profile.version = 1
 	end
 	
-	self.alarmSets = new()
+	self.alarmSets = {} 
 
 	for i, v in ipairs(self.db.profile.sets) do
 		self.alarmSets[i] = v.name
@@ -1946,7 +1946,7 @@ function AuraAlarm:COMBAT_LOG_EVENT_UNFILTERED(event, ...)
 		end
 	end
 	
-	if aura_id and not self.capturedAuras[aura_id] and dst_name == UnitName("player") then 
+	if aura_id and self.capturedAuras and not self.capturedAuras[aura_id] and dst_name == UnitName("player") then 
 		self.capturedAuras[aura_id] = {name = aura_name, type = aura_type }
 		self.AARebuildFrame:SetScript("OnUpdate", self.ProcessCaptures)
 	end
