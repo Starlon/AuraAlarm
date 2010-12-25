@@ -1494,12 +1494,10 @@ function AuraAlarm:WatchForAura(elapsed)
 	
 	local units = new()
 	
+	units[1] = "player"
+	
 	for i, v in pairs(self.obj.db.profile.auras) do
 		units[#units + 1] = v.unit or "player"
-	end
-
-	if not units[1] then
-		units[1] = "player"
 	end
 
 	local auras = new()
